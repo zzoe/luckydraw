@@ -1,0 +1,18 @@
+[package]
+name = "web-client"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+yew = { version = "*", features = ["csr"] }
+futures = "*"
+gloo-net = "*"
+serde = { version = "*", features = ["derive"] }
+serde_repr = "*"
+serde_json = "*"
+web-sys = "*"
+log = "*"
+wasm-logger = "*"
+indextree = "*"
