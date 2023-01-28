@@ -9,3 +9,22 @@ edition = "2021"
 members = ["web-client"]
 
 [dependencies]
+anyhow = { version = "*" }
+async-channel = { version = "*" }
+async-fs = { version = "*" }
+async-global-executor = { version = "*" }
+async-session = { git = "https://gitee.com/zzoe/async-session.git", branch = "zoe" }
+async-trait = { version = "*" }
+fastrand = { version = "*" }
+futures = { version = "*" }
+hmac = { version = "*" }
+log = { version = "*" }
+minitrace = { version = "*" }
+rbatis = { version = "*" }
+rbdc-sqlite = { version = "*" }
+rbs = { version = "*" }
+serde = { version = "*" }
+serde_json = { version = "*" }
+sha2 = { version = "*" }
+tide = { version = "*", default-features = false, features = ["h1-server", "cookies"] }
+time = { version = "*", features = ["macros", "formatting", "local-offset"] }

@@ -63,7 +63,7 @@ impl Component for Menu {
         let userid = context.borrow().userid;
 
         ctx.link().send_future(async move {
-            if let Ok(res) = Request::get("http://127.0.0.1:4523/m1/731916-0-default/menu")
+            if let Ok(res) = Request::get("/api/menu")
                 .query([("sys", sys.to_string()), ("userid", userid.to_string())])
                 .send()
                 .await

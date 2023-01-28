@@ -1,3 +1,5 @@
+mod web;
+
 fn main() {
-    println!("Hello, world!");
+    async_global_executor::block_on(web::listen());
 }

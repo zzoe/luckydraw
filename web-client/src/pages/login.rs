@@ -47,10 +47,7 @@ impl Component for Login {
 
                 let login_req = self.clone();
                 ctx.link().send_future(async move {
-                    if let Ok(req) =
-                        Request::post("http://127.0.0.1:4523/m1/731916-0-default/login")
-                            .json(&login_req)
-                    {
+                    if let Ok(req) = Request::post("/login").json(&login_req) {
                         if let Ok(res) = req.send().await {
                             if let Ok(res) = res.json::<LoginRes>().await {
                                 return Msg::LoginResponse(res);
