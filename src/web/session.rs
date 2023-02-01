@@ -1,4 +1,6 @@
+use async_session::base64::Engine;
 use async_session::{base64, Session, SessionStore};
+use base64::engine::general_purpose::STANDARD;
 use hmac::{Mac, SimpleHmac};
 use minitrace::Span;
 use sha2::Sha256;
@@ -55,7 +57,7 @@ pub(crate) struct SessionMiddleware<Store> {
     key: Key,
 }
 
-impl<Store: SessionStore> std::fmt::Debug for SessionMiddleware<Store> {
+impl<Store: SessionStore> Debug for SessionMiddleware<Store> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SessionMiddleware")
             .field("store", &self.store)
@@ -273,7 +275,7 @@ impl<Store: SessionStore> SessionMiddleware<Store> {
         mac.update(cookie.value().as_bytes());
 
         // Cookie's new value is [MAC | original-value].
-        let mut new_value = base64::encode(&mac.finalize().into_bytes());
+        let mut new_value = STANDARD.encode(mac.finalize().into_bytes());
         new_value.push_str(cookie.value());
         cookie.set_value(new_value);
     }
@@ -290,7 +292,9 @@ impl<Store: SessionStore> SessionMiddleware<Store> {
 
         // Split [MAC | original-value] into its two parts.
         let (digest_str, value) = cookie_value.split_at(BASE64_DIGEST_LEN);
-        let digest = base64::decode(digest_str).map_err(|_| "bad base64 digest")?;
+        let digest = STANDARD
+            .decode(digest_str)
+            .map_err(|_| "bad base64 digest")?;
 
         // Perform the verification.
         let mut mac = SimpleHmac::<Sha256>::new_from_slice(self.key.signing()).expect("good key");
