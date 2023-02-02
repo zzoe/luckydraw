@@ -22,7 +22,7 @@ pub struct MenuNode {
 }
 
 pub(crate) async fn get(req: WebRequest) -> tide::Result {
-    let mut span = Span::enter_with_local_parent("login");
+    let mut span = Span::enter_with_local_parent("menu");
     let menu_req: MenuReq = req.query()?;
     span.add_properties(|| {
         vec![

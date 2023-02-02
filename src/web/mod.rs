@@ -54,12 +54,17 @@ pub(crate) fn route(mut app: Server<WebState>) -> Server<WebState> {
     //数据库
     // app.at("/api/sqlite/query").post(sqlite::query);
 
-    // let mut api = tide::with_state(*app.state());
-    // api.at("/menu").get(menu::get);
+    let mut api = tide::with_state(*app.state());
+    api.at("/menu").get(menu::get);
 
-    // app.at("/api").nest(api);
-    app.at("/api/menu").get(menu::get);
-    app.at("/**").get(static_file::get);
+    app.at("/api").nest(api);
+    // app.at("/api/menu").get(menu::get);
+    // app.at("*").get(static_file::get);
+
+    let mut static_file = tide::with_state(*app.state());
+    static_file.at("*").get(static_file::get);
+
+    app.at("/").nest(static_file);
     app.at("/").get(static_file::get);
 
     app
