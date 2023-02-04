@@ -36,10 +36,10 @@ pub(crate) struct LogMiddleware {
 impl LogMiddleware {
     pub(crate) fn new() -> Self {
         let seq = AtomicU64::new(1);
-        let (s, r) = async_channel::unbounded::<LogMsg>();
+        let (sender, r) = async_channel::unbounded::<LogMsg>();
         async_global_executor::spawn(log_writer(r)).detach();
 
-        LogMiddleware { seq, sender: s }
+        LogMiddleware { seq, sender }
     }
 }
 

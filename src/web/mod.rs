@@ -4,6 +4,7 @@ use std::iter::repeat_with;
 use anyhow::Result;
 use async_session::MemoryStore;
 use tide::{Request, Server};
+use tide_rustls::TlsListener;
 use time::Duration;
 
 use session::SessionExt;
@@ -23,8 +24,12 @@ pub(crate) type WebRequest = Request<WebState>;
 
 pub(crate) async fn listen() {
     let app = new(WebState::default()).unwrap();
-    let address = std::env::var("LUCK_DRAW_ADDRESS").unwrap_or_else(|_| "0.0.0.0:8080".to_string());
-    if let Err(e) = app.listen(address).await {
+    let address = std::env::var("LUCK_DRAW_ADDRESS").unwrap_or_else(|_| "0.0.0.0:1314".to_string());
+    let listener = TlsListener::build()
+        .addrs(address)
+        .cert("cert.pem")
+        .key("key.pem");
+    if let Err(e) = app.listen(listener).await {
         eprintln!("app listen fail: {e}");
     }
 }
@@ -57,13 +62,10 @@ pub(crate) fn route(mut app: Server<WebState>) -> Server<WebState> {
     let mut api = tide::with_state(*app.state());
     api.at("/menu").get(menu::get);
 
-    app.at("/api").nest(api);
-    // app.at("/api/menu").get(menu::get);
-    // app.at("*").get(static_file::get);
-
     let mut static_file = tide::with_state(*app.state());
     static_file.at("*").get(static_file::get);
 
+    app.at("/api").nest(api);
     app.at("/").nest(static_file);
     app.at("/").get(static_file::get);
 

@@ -20,11 +20,12 @@ futures = { version = "*" }
 hmac = { version = "*" }
 log = { version = "*" }
 minitrace = { version = "*" }
+rbs = { version = "*" }
 rbatis = { version = "*" }
 rbdc-sqlite = { version = "*" }
-rbs = { version = "*" }
 serde = { version = "*" }
 serde_json = { version = "*" }
 sha2 = { version = "*" }
 tide = { version = "*", default-features = false, features = ["h1-server", "cookies"] }
+tide-rustls = { version = "*" }
 time = { version = "*", features = ["macros", "formatting", "local-offset"] }
