@@ -3,6 +3,8 @@ use std::iter::repeat_with;
 
 use anyhow::Result;
 use async_session::MemoryStore;
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
 use tide::{Request, Server};
 use tide_rustls::TlsListener;
 use time::Duration;
@@ -16,8 +18,19 @@ pub(crate) mod session;
 pub(crate) mod menu;
 pub(crate) mod static_file;
 
-#[derive(Copy, Clone, Debug, Default)]
-pub(crate) struct WebState;
+#[derive(Clone, Debug)]
+pub(crate) struct WebState {
+    pub(crate) pool: Pool<SqliteConnectionManager>,
+}
+
+impl Default for WebState {
+    fn default() -> Self {
+        let sqlite = SqliteConnectionManager::file("sqlite.db");
+        WebState {
+            pool: Pool::new(sqlite).unwrap(),
+        }
+    }
+}
 
 pub(crate) type WebServer = Server<WebState>;
 pub(crate) type WebRequest = Request<WebState>;
@@ -59,10 +72,10 @@ pub(crate) fn route(mut app: Server<WebState>) -> Server<WebState> {
     //数据库
     // app.at("/api/sqlite/query").post(sqlite::query);
 
-    let mut api = tide::with_state(*app.state());
+    let mut api = tide::with_state(app.state().clone());
     api.at("/menu").get(menu::get);
 
-    let mut static_file = tide::with_state(*app.state());
+    let mut static_file = tide::with_state(app.state().clone());
     static_file.at("*").get(static_file::get);
 
     app.at("/api").nest(api);
