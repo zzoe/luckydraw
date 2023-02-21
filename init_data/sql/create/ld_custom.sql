@@ -1,4 +1,5 @@
-create table main.ld_custom
+drop table ld_custom;
+create table ld_custom
 (
     cus_id       integer not null
         constraint ld_custom_pk primary key autoincrement,
@@ -10,6 +11,6 @@ create table main.ld_custom
     cus_flag     TEXT
 );
 
-create unique index main.ld_custom_cus_nickname_uindex
-    on main.ld_custom (cus_nickname);
+create unique index ld_custom_cus_nickname_uindex
+    on ld_custom (cus_nickname);
 

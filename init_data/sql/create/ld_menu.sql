@@ -7,7 +7,6 @@ create table ld_menu
     menu_type   integer,
     menu_name   TEXT,
     menu_desc   TEXT,
-    func_id     integer,
     menu_status integer
 );
 
