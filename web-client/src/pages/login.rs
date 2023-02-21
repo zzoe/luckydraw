@@ -8,7 +8,7 @@ use crate::{App, Msg as RootMsg};
 
 #[derive(Default, Deserialize, Serialize, Debug, Clone)]
 pub struct Login {
-    username: String,
+    user_account: String,
     password: String,
     #[serde(skip)]
     loading: bool,
@@ -63,7 +63,7 @@ impl Component for Login {
             Msg::LoginFail => {
                 self.loading = false;
             }
-            Msg::UserInput(user_name) => self.username = user_name,
+            Msg::UserInput(user_account) => self.user_account = user_account,
             Msg::PassInput(password) => self.password = password,
             Msg::InputErr => {
                 log::info!("Input Error");

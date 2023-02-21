@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 anyhow = "*"
 rusqlite = { version = "*", features = ["bundled"] }
+log = "*"
+pretty_env_logger = "*"

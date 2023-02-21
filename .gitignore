@@ -2,5 +2,6 @@
 target
 dist
 Cargo.lock
+sqlite.db
 *.log
 /*.pem

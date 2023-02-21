@@ -21,7 +21,7 @@ hmac = { version = "*" }
 log = { version = "*" }
 minitrace = { version = "*" }
 r2d2 = { version = "*" }
-r2d2_sqlite = { version = "*" }
+r2d2_sqlite = { version = "*", features=["bundled"] }
 serde = { version = "*" }
 serde_json = { version = "*" }
 sha2 = { version = "*" }
