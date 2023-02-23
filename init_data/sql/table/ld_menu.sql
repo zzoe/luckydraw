@@ -7,6 +7,7 @@ create table ld_menu
     menu_type   integer,
     menu_name   TEXT,
     menu_desc   TEXT,
+    page_id     integer,
     menu_status integer
 );
 

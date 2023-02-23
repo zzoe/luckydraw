@@ -11,7 +11,7 @@ pub mod fn1002;
 
 #[derive(Debug, Default)]
 pub struct Sys1 {
-    func_id: u32,
+    page_id: u32,
 }
 
 pub enum Msg {
@@ -29,13 +29,13 @@ impl Component for Sys1 {
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::MenuClicked(func_id) => self.func_id = func_id,
+            Msg::MenuClicked(page_id) => self.page_id = page_id,
         }
         true
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let func_view = self.view_func(ctx, self.func_id);
+        let func_view = self.view_func(ctx, self.page_id);
 
         html! {
             <div class="columns">

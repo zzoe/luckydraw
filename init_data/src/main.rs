@@ -1,19 +1,20 @@
 #[macro_use]
 extern crate log;
 
-use log::LevelFilter::Trace;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
+use log::LevelFilter::Trace;
+
 // one possible implementation of walking a directory and return files
-fn visit_dirs(dir: &Path) -> io::Result<Vec<PathBuf>> {
+fn visit_dir(dir: &Path) -> io::Result<Vec<PathBuf>> {
     let mut files = Vec::new();
     if dir.is_dir() {
         for entry in fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
             if path.is_dir() {
-                files.append(&mut visit_dirs(&path)?);
+                files.append(&mut visit_dir(&path)?);
             } else {
                 files.push(path);
             }
@@ -28,7 +29,8 @@ fn main() -> anyhow::Result<()> {
         .init();
 
     let conn = rusqlite::Connection::open("sqlite.db")?;
-    let files = visit_dirs(Path::new("init_data/sql"))?;
+    let mut files = visit_dir(Path::new("init_data/sql/table"))?;
+    files.append(&mut visit_dir(Path::new("init_data/sql/data"))?);
 
     for file in files {
         info!("{file:?}");

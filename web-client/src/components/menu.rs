@@ -30,7 +30,7 @@ pub struct MenuNode {
     pub parent_id: u32,
     pub menu_type: MenuType,
     pub menu_name: String,
-    pub func_id: u32,
+    pub page_id: u32,
     #[serde(default = "expanded")]
     pub expanded: bool,
     #[serde(skip)]
@@ -60,11 +60,10 @@ impl Component for Menu {
     fn create(ctx: &Context<Self>) -> Self {
         let context = ctx.context();
         let sys = context.borrow().sys as usize;
-        let userid = context.borrow().userid;
 
         ctx.link().send_future(async move {
             if let Ok(res) = Request::get("/api/menu")
-                .query([("sys", sys.to_string()), ("userid", userid.to_string())])
+                .query([("sys", sys.to_string())])
                 .send()
                 .await
             {
@@ -129,12 +128,12 @@ impl Component for Menu {
                 clicked.expanded = !clicked.expanded;
                 self.activated = id;
 
-                if clicked.func_id > 0 {
+                if clicked.page_id > 0 {
                     let sys = ctx.context().borrow().sys;
                     match sys {
                         AppSys::Welcome => {}
                         AppSys::Sys1 => {
-                            ctx.send::<Sys1>(Module::Sys1, Sys1Msg::MenuClicked(clicked.func_id))
+                            ctx.send::<Sys1>(Module::Sys1, Sys1Msg::MenuClicked(clicked.page_id))
                         }
                         AppSys::Sys2 => {}
                     }

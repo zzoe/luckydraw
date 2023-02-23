@@ -9,13 +9,10 @@ use tide::{Request, Server};
 use tide_rustls::TlsListener;
 use time::Duration;
 
-use session::SessionExt;
-
 pub(crate) mod auth;
 pub(crate) mod log_ext;
-pub(crate) mod session;
-// pub(crate) mod sqlite;
 pub(crate) mod menu;
+pub(crate) mod session;
 pub(crate) mod static_file;
 
 #[derive(Clone, Debug)]
