@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = ["web-client", "init_data"]
+members = ["dioxus-client", "egui-client", "yew-client", "init_data"]
 
 [dependencies]
 anyhow = { version = "*" }
@@ -21,7 +21,7 @@ hmac = { version = "*" }
 log = { version = "*" }
 minitrace = { version = "*" }
 r2d2 = { version = "*" }
-r2d2_sqlite = { version = "*", features=["bundled"] }
+r2d2_sqlite = { version = "*", features = ["bundled"] }
 serde = { version = "*" }
 serde_json = { version = "*" }
 sha2 = { version = "*" }
