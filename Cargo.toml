@@ -22,8 +22,7 @@ log = { version = "*" }
 minitrace = { version = "*" }
 r2d2 = { version = "*" }
 r2d2_sqlite = { version = "*", features = ["bundled"] }
-serde = { version = "*" }
-serde_json = { version = "*" }
+serde = { version = "*", features=["derive"] }
 sha2 = { version = "*" }
 tide = { version = "*", default-features = false, features = ["h1-server", "cookies"] }
 tide-rustls = { version = "*" }

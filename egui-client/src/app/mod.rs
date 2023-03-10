@@ -1,28 +1,126 @@
+use std::collections::HashMap;
+use std::time::Duration;
+
+use async_channel::{unbounded, Receiver, Sender};
 use eframe::egui::{Context, FontFamily, FontId, TextStyle};
 use eframe::{egui, Frame};
+use surf::{Client, Config, Request, Url};
 
 use page::*;
 
 mod page;
 
-#[derive(Default)]
 pub struct App {
+    serial: usize,
+    pending: HashMap<usize, PendingType>,
+    unbounded_channel: UnboundedChannel,
+    base_url: Url,
+    client: Client,
     page: Page,
     login: login::Login,
 }
 
+impl Default for App {
+    fn default() -> Self {
+        App {
+            serial: Default::default(),
+            pending: Default::default(),
+            unbounded_channel: Default::default(),
+            base_url: Url::parse("https://127.0.0.1:1314/").unwrap(),
+            client: Default::default(),
+            page: Default::default(),
+            login: Default::default(),
+        }
+    }
+}
+
+pub(crate) enum PendingType {
+    Login,
+}
+
+#[derive(Clone)]
+pub(crate) struct UnboundedChannel {
+    sender: Sender<AsyncResult>,
+    receiver: Receiver<AsyncResult>,
+}
+
+impl Default for UnboundedChannel {
+    fn default() -> Self {
+        let (sender, receiver) = unbounded();
+        UnboundedChannel { sender, receiver }
+    }
+}
+
+pub(crate) struct AsyncResult {
+    serial: usize,
+    res: surf::Result,
+}
+
+impl AsyncResult {
+    pub fn new(serial: usize, res: surf::Result) -> Self {
+        AsyncResult { serial, res }
+    }
+}
+
 impl App {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        setup_custom_fonts(&cc.egui_ctx);
+        let egui_ctx = &cc.egui_ctx;
+        setup_custom_fonts(egui_ctx);
         // egui_ctx.set_visuals(egui::Visuals::dark());
         // egui_ctx.set_debug_on_hover(true);
 
-        App::default()
+        let client: Client = Config::new()
+            .set_timeout(Some(Duration::from_secs(30)))
+            .try_into()
+            .unwrap();
+
+        App {
+            client,
+            ..Default::default()
+        }
+    }
+
+    pub fn next_serial(&mut self) -> usize {
+        self.serial += 1;
+        self.serial
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) fn send(&self, serial: usize, req: Request) {
+        let client = self.client.clone();
+        let sender = self.unbounded_channel.sender.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            let res = client.send(req).await;
+            if let Err(e) = sender.send(AsyncResult::new(serial, res)).await {
+                log::error!("收到异步响应后，往通道发送结果时报错 {serial}： {e}");
+            }
+        });
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn send(&self, serial: usize, req: Request) {
+        let client = self.client.clone();
+        let sender = self.unbounded_channel.sender.clone();
+        async_global_executor::spawn(async move {
+            let res = client.send(req).await;
+            if let Err(e) = sender.send(AsyncResult::new(serial, res)).await {
+                log::error!("收到异步响应后，往通道发送结果时报错 {serial}： {e}");
+            };
+        })
+        .detach();
     }
 }
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
+        while let Ok(msg) = self.unbounded_channel.receiver.try_recv() {
+            if let Some(pt) = self.pending.remove(&msg.serial) {
+                match pt {
+                    PendingType::Login => login::deal_response(self, msg.res),
+                }
+            }
+        }
+
         match self.page {
             Page::Login => login::show(self, ctx),
             Page::Home => home::show(ctx),
@@ -45,9 +143,9 @@ fn setup_custom_fonts(ctx: &Context) {
         egui::FontData::from_static(include_bytes!("../../assets/simkai.ttf")),
     );
 
-    let entry = fonts.families.entry(FontFamily::Proportional).or_default();
-    entry.push("consola".to_owned());
-    entry.push("simkai".to_owned());
+    // let entry = fonts.families.entry(FontFamily::Proportional).or_default();
+    // entry.push("consola".to_owned());
+    // entry.push("simkai".to_owned());
 
     let entry = fonts.families.entry(FontFamily::Monospace).or_default();
     entry.push("consola".to_owned());
