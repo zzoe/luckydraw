@@ -4,7 +4,7 @@ extern crate log;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-use log::LevelFilter::Trace;
+use tracing::LevelFilter::Trace;
 
 // one possible implementation of walking a directory and return files
 fn visit_dir(dir: &Path) -> io::Result<Vec<PathBuf>> {

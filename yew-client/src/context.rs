@@ -73,12 +73,12 @@ impl<COMP: Component> ContextExt for Context<COMP> {
                     s.scope.clone().downcast::<DST>().send_message(msg);
                     return;
                 } else {
-                    log::error!("发送的模块类型与注册的模块类型不一致");
+                    tracing::error!("发送的模块类型与注册的模块类型不一致");
                 }
             } else {
-                log::error!("没找到此模块{module:?}");
+                tracing::error!("没找到此模块{module:?}");
             }
         }
-        log::error!("往模块{:?}发送消息失败", module);
+        tracing::error!("往模块{:?}发送消息失败", module);
     }
 }

@@ -71,7 +71,7 @@ impl Component for App {
             }
             Msg::Login(userid) => {
                 self.context.borrow_mut().userid = userid;
-                log::info!("userid: {}", userid);
+                tracing::info!("userid: {}", userid);
             }
         }
         true

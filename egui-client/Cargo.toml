@@ -8,15 +8,17 @@ edition = "2021"
 [dependencies]
 egui = "*"
 eframe = { version = "*", default-feature = false, features = ["wgpu", "dark-light"] }
-log = "*"
+tracing = "*"
 async-channel = "*"
 serde = { version = "*", features = ["derive"] }
+serde_repr = "*"
+futures = { version = "*", features = ["executor"] }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tracing-subscriber = "*"
 async-global-executor = "*"
-surf = { version = "*", default-features = false, features = ["h1-client", "middleware-logger", "encoding"] }
+surf = { version = "*", default-features = false, features = ["hyper-client"] }
 wasm-bindgen-futures = "*"
 
 # web:
@@ -24,7 +26,7 @@ wasm-bindgen-futures = "*"
 console_error_panic_hook = "*"
 tracing-wasm = "*"
 wasm-bindgen-futures = "*"
-surf = { version = "*", default-features = false, features = ["wasm-client", "middleware-logger", "encoding"] }
+surf = { version = "*", default-features = false, features = ["wasm-client"] }
 
 [profile.release]
 opt-level = 2 # fast and small wasm

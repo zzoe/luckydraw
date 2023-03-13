@@ -18,6 +18,7 @@ pub struct App {
     client: Client,
     page: Page,
     login: login::Login,
+    home: home::Home,
 }
 
 impl Default for App {
@@ -30,12 +31,14 @@ impl Default for App {
             client: Default::default(),
             page: Default::default(),
             login: Default::default(),
+            home: Default::default(),
         }
     }
 }
 
 pub(crate) enum PendingType {
     Login,
+    GetMenu,
 }
 
 #[derive(Clone)]
@@ -92,7 +95,7 @@ impl App {
         wasm_bindgen_futures::spawn_local(async move {
             let res = client.send(req).await;
             if let Err(e) = sender.send(AsyncResult::new(serial, res)).await {
-                log::error!("收到异步响应后，往通道发送结果时报错 {serial}： {e}");
+                tracing::error!("收到异步响应后，往通道发送结果时报错 {serial}： {e}");
             }
         });
     }
@@ -102,9 +105,10 @@ impl App {
         let client = self.client.clone();
         let sender = self.unbounded_channel.sender.clone();
         async_global_executor::spawn(async move {
+            tracing::info!("{serial}: {req:?}");
             let res = client.send(req).await;
             if let Err(e) = sender.send(AsyncResult::new(serial, res)).await {
-                log::error!("收到异步响应后，往通道发送结果时报错 {serial}： {e}");
+                tracing::error!("收到异步响应后，往通道发送结果时报错 {serial}： {e}");
             };
         })
         .detach();
@@ -116,7 +120,8 @@ impl eframe::App for App {
         while let Ok(msg) = self.unbounded_channel.receiver.try_recv() {
             if let Some(pt) = self.pending.remove(&msg.serial) {
                 match pt {
-                    PendingType::Login => login::deal_response(self, msg.res),
+                    PendingType::Login => login::login_callback(self, msg.res),
+                    PendingType::GetMenu => home::get_menu_callback(self, msg.res),
                 }
             }
         }

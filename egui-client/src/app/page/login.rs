@@ -58,18 +58,30 @@ impl Args {
     }
 }
 
-pub(crate) fn deal_response(app: &mut App, res: surf::Result) {
+fn login(app: &mut App) {
+    let url = app.base_url.join("/login").unwrap();
+    let mut req = Request::new(Method::Post, url);
+    let args = Args::new(app.login.user_account.clone(), app.login.password.clone());
+    req.body_json(&args).unwrap();
+
+    let serial = app.next_serial();
+    app.pending.insert(serial, PendingType::Login);
+    app.send(serial, req);
+}
+
+pub(crate) fn login_callback(app: &mut App, res: surf::Result) {
     match res {
         Ok(response) => {
             if response.status().is_success() {
                 app.login.status = LoginStatus::Success;
                 app.page = Page::Home;
+                home::get_menu(app);
                 return;
             } else {
-                log::error!("登录失败： {:?}", response);
+                tracing::error!("登录失败： {:?}", response);
             }
         }
-        Err(e) => log::error!("登录异常： {e}"),
+        Err(e) => tracing::error!("登录异常： {e}"),
     }
     app.login.status = LoginStatus::Normal;
 }
@@ -110,15 +122,7 @@ pub(crate) fn show(app: &mut App, ctx: &Context) {
                 .clicked()
             {
                 app.login.status = LoginStatus::Logging;
-
-                let url = app.base_url.join("/login").unwrap();
-                let mut req = Request::new(Method::Post, url);
-                let args = Args::new(app.login.user_account.clone(), app.login.password.clone());
-                req.body_json(&args).unwrap();
-
-                let serial = app.next_serial();
-                app.pending.insert(serial, PendingType::Login);
-                app.send(serial, req);
+                login(app);
             }
         });
 
