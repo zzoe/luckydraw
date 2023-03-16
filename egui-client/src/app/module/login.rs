@@ -1,22 +1,17 @@
 use eframe::egui;
 use eframe::egui::Context;
-use egui::{Button, FontSelection, Ui, Vec2, WidgetText};
+use egui::{Button, FontSelection, Key, TextEdit, Ui, Vec2, Widget, WidgetText};
 use serde::Serialize;
 use surf::http::Method;
 
 use crate::app::*;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) enum LoginStatus {
+    #[default]
     Normal,
     Logging,
     Success,
-}
-
-impl Default for LoginStatus {
-    fn default() -> Self {
-        LoginStatus::Normal
-    }
 }
 
 #[derive(Clone, Default, Debug)]
@@ -74,7 +69,7 @@ pub(crate) fn login_callback(app: &mut App, res: surf::Result) {
         Ok(response) => {
             if response.status().is_success() {
                 app.login.status = LoginStatus::Success;
-                app.page = Page::Home;
+                app.module = Module::Home;
                 home::get_menu(app);
                 return;
             } else {
@@ -114,13 +109,13 @@ pub(crate) fn show(app: &mut App, ctx: &Context) {
             ui.horizontal(|ui| {
                 ui.add_space(space_width);
                 ui.label("密码：");
-                ui.text_edit_singleline(&mut app.login.password).changed();
+                TextEdit::singleline(&mut app.login.password)
+                    .password(true)
+                    .ui(ui);
             });
 
-            if ui
-                .add_enabled(app.login.status == LoginStatus::Normal, Button::new("登录"))
-                .clicked()
-            {
+            let btn = ui.add_enabled(app.login.status == LoginStatus::Normal, Button::new("登录"));
+            if btn.clicked() || ctx.input(|i| i.key_pressed(Key::Enter)) {
                 app.login.status = LoginStatus::Logging;
                 login(app);
             }

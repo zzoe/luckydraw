@@ -1,5 +1,6 @@
 use eframe::egui;
 use eframe::egui::Context;
+use egui::Ui;
 use serde::Deserialize;
 use serde_repr::Deserialize_repr;
 use surf::http::convert::Serialize;
@@ -9,18 +10,13 @@ use surf::Request;
 use crate::app::PendingType;
 use crate::App;
 
-#[derive(PartialEq, Eq, Clone, Debug, Deserialize_repr)]
+#[derive(PartialEq, Eq, Clone, Debug, Default, Deserialize_repr)]
 #[repr(u8)]
 pub enum MenuType {
+    #[default]
     Label,
     Fold,
     Item,
-}
-
-impl Default for MenuType {
-    fn default() -> Self {
-        MenuType::Label
-    }
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Default, Deserialize)]
@@ -34,6 +30,19 @@ pub(crate) struct MenuNode {
     pub expanded: bool,
     #[serde(skip)]
     pub active: bool,
+    pub children: Vec<MenuNode>,
+}
+
+impl MenuNode {
+    fn show(self, ui: &mut Ui) {
+        if self.menu_type == MenuType::Item {
+            if ui.button(self.menu_name).clicked() {
+                todo!()
+            }
+        } else {
+            todo!()
+        }
+    }
 }
 
 fn expanded() -> bool {
@@ -79,9 +88,13 @@ pub(crate) fn get_menu_callback(app: &mut App, res: surf::Result) {
     }
 }
 
-pub(crate) fn show(ctx: &Context) {
+pub(crate) fn show(app: &mut App, ctx: &Context) {
     egui::SidePanel::left("menu").show(ctx, |ui| {
-        ui.label("menus");
+        ui.vertical_centered_justified(|ui| {
+            for menu in &app.home.menus {
+                ui.label(&menu.menu_name);
+            }
+        });
     });
     egui::CentralPanel::default().show(ctx, |ui| {
         ui.heading("欢迎来到我的主页");

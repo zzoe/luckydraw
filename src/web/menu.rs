@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
+
 use anyhow::Result;
 use minitrace::Span;
 use r2d2::PooledConnection;
@@ -22,6 +25,7 @@ pub struct MenuNode {
     pub menu_type: usize,
     pub menu_name: String,
     pub page_id: usize,
+    pub children: Vec<RefCell<MenuNode>>,
 }
 
 impl MenuNode {
@@ -38,6 +42,7 @@ impl MenuNode {
             menu_type,
             menu_name,
             page_id,
+            children: Vec::new(),
         }
     }
 }
@@ -77,7 +82,7 @@ pub(crate) async fn get(req: WebRequest) -> tide::Result {
 fn query_menu(
     conn: PooledConnection<SqliteConnectionManager>,
     userid: usize,
-) -> Result<Vec<MenuNode>> {
+) -> Result<Vec<RefCell<MenuNode>>> {
     let mut stmt = conn.prepare(
         "select lm.menu_id,lm.parent_id,lm.menu_type,lm.menu_name,lm.page_id from ld_user lu
                left join ld_user_role lur on lu.role_id = lur.role_id and lur.role_type=1
@@ -86,15 +91,25 @@ fn query_menu(
     )?;
     let mut rows = stmt.query([&userid])?;
 
-    let mut menus = Vec::<MenuNode>::new();
+    let mut menu_map = HashMap::new();
     while let Some(row) = rows.next()? {
-        menus.push(MenuNode::new(
+        let menu = RefCell::new(MenuNode::new(
             row.get(0)?,
             row.get(1)?,
             row.get(2)?,
             row.get(3)?,
             row.get(4)?,
         ));
+        menu_map.insert(menu.borrow().menu_id, menu.clone());
+    }
+
+    let mut menus = Vec::<RefCell<MenuNode>>::new();
+    for menu in menu_map.values() {
+        if menu.borrow().parent_id == 0 {
+            menus.push(menu.clone());
+        } else if let Some(parent) = menu_map.get(&menu.borrow().parent_id) {
+            parent.borrow_mut().children.push(menu.clone());
+        }
     }
 
     Ok(menus)

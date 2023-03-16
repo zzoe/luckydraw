@@ -6,9 +6,9 @@ use eframe::egui::{Context, FontFamily, FontId, TextStyle};
 use eframe::{egui, Frame};
 use surf::{Client, Config, Request, Url};
 
-use page::*;
+use module::*;
 
-mod page;
+mod module;
 
 pub struct App {
     serial: usize,
@@ -16,7 +16,7 @@ pub struct App {
     unbounded_channel: UnboundedChannel,
     base_url: Url,
     client: Client,
-    page: Page,
+    module: Module,
     login: login::Login,
     home: home::Home,
 }
@@ -29,7 +29,7 @@ impl Default for App {
             unbounded_channel: Default::default(),
             base_url: Url::parse("https://127.0.0.1:1314/").unwrap(),
             client: Default::default(),
-            page: Default::default(),
+            module: Default::default(),
             login: Default::default(),
             home: Default::default(),
         }
@@ -126,9 +126,9 @@ impl eframe::App for App {
             }
         }
 
-        match self.page {
-            Page::Login => login::show(self, ctx),
-            Page::Home => home::show(ctx),
+        match self.module {
+            Module::Login => login::show(self, ctx),
+            Module::Home => home::show(self, ctx),
         }
     }
 }
