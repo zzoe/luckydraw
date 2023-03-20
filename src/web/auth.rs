@@ -1,9 +1,9 @@
 use async_trait::async_trait;
-use minitrace::Span;
 use r2d2_sqlite::rusqlite;
 use r2d2_sqlite::rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 use tide::{Body, Middleware, Next, Request, Response, Result, StatusCode};
+use tracing::{info, info_span, Instrument};
 
 use crate::web::session::SessionExt;
 use crate::web::WebRequest;
@@ -43,20 +43,17 @@ struct Reply {
 }
 
 pub(crate) async fn login(mut req: WebRequest) -> Result {
-    let mut span = Span::enter_with_local_parent("login");
     let args = req.body_json::<Args>().await?;
-    span.add_properties(|| {
-        vec![
-            ("user_account", args.user_account.clone()),
-            ("input password", args.password.clone()),
-        ]
-    });
+    info!(
+        "user account: {}, input password: {}",
+        args.user_account, args.password
+    );
 
     let pool = req.state().pool.clone();
     let conn = pool.get()?;
 
     //获取数据库密码
-    let mut span = Span::enter_with_parent("查询数据库", &span);
+    let span = info_span!("查询用户密码");
     let account = args.user_account.clone();
     let user_password: Option<(isize, String)> = async_global_executor::spawn_blocking(
         move || -> rusqlite::Result<Option<(isize, String)>> {
@@ -68,6 +65,7 @@ pub(crate) async fn login(mut req: WebRequest) -> Result {
             .optional()
         },
     )
+    .instrument(span)
     .await?;
 
     //判断密码是否正确并更新session的授权状态
@@ -77,7 +75,7 @@ pub(crate) async fn login(mut req: WebRequest) -> Result {
         authenticated = args.password.eq(&pass);
         userid = id as usize;
         req.session_mut().insert("userid", userid)?;
-        span.add_property(|| ("database user_password", pass));
+        info!("database password: {}", pass);
     }
     req.session_mut().insert("authenticated", authenticated)?;
 

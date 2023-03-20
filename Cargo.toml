@@ -10,20 +10,23 @@ members = ["dioxus-client", "egui-client", "yew-client", "init_data"]
 
 [dependencies]
 anyhow = { version = "*" }
-async-channel = { version = "*" }
+arc-swap = { version = "*" }
 async-fs = { version = "*" }
 async-global-executor = { version = "*" }
 async-session = { git = "https://gitee.com/zzoe/async-session.git", branch = "zoe" }
 async-trait = { version = "*" }
 fastrand = { version = "*" }
-futures = { version = "*" }
+#futures = { version = "*" }
 hmac = { version = "*" }
-log = { version = "*" }
-minitrace = { version = "*" }
+once_cell = { version = "*" }
 r2d2 = { version = "*" }
 r2d2_sqlite = { version = "*", features = ["bundled"] }
-serde = { version = "*", features=["derive"] }
+serde = { version = "*", features = ["derive"] }
+serde_json = { version = "*" }
 sha2 = { version = "*" }
 tide = { version = "*", default-features = false, features = ["h1-server", "cookies"] }
 tide-rustls = { version = "*" }
 time = { version = "*", features = ["macros", "formatting", "local-offset"] }
+tracing = { version = "*" }
+tracing-appender = { version = "*" }
+tracing-subscriber = { version = "*", features = ["local-time"] }

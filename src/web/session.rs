@@ -1,15 +1,16 @@
+use std::fmt::Debug;
+
 use async_session::base64::Engine;
 use async_session::{base64, Session, SessionStore};
 use base64::engine::general_purpose::STANDARD;
 use hmac::{Mac, SimpleHmac};
-use minitrace::Span;
 use sha2::Sha256;
-use std::fmt::Debug;
 use tide::http::cookies::{Cookie, Key, SameSite};
 use tide::http::format_err;
 use tide::utils::async_trait;
 use tide::{Middleware, Next, Request, Result};
 use time::Duration;
+use tracing::error;
 
 const BASE64_DIGEST_LEN: usize = 44;
 
@@ -96,8 +97,7 @@ where
 
         if session.is_destroyed() {
             if let Err(e) = self.store.destroy_session(session).await {
-                let mut span = Span::enter_with_local_parent("Session Middleware");
-                span.add_property(|| ("unable to destroy session", e.to_string()));
+                error!("unable to destroy session: {e}");
             }
 
             if let Some(mut cookie) = cookie {

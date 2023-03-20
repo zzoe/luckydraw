@@ -1,7 +1,9 @@
 use std::fmt::Debug;
 use std::iter::repeat_with;
 
+use crate::config::{Config, GLOBAL_CONFIG};
 use anyhow::Result;
+use arc_swap::access::Access;
 use async_session::MemoryStore;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -22,7 +24,8 @@ pub(crate) struct WebState {
 
 impl Default for WebState {
     fn default() -> Self {
-        let sqlite = SqliteConnectionManager::file("sqlite.db");
+        let sqlite_cfg = GLOBAL_CONFIG.map(|cfg: &Config| &cfg.sqlite).load();
+        let sqlite = SqliteConnectionManager::file(&*sqlite_cfg.path);
         WebState {
             pool: Pool::new(sqlite).unwrap(),
         }
@@ -34,11 +37,12 @@ pub(crate) type WebRequest = Request<WebState>;
 
 pub(crate) async fn listen() {
     let app = new(WebState::default()).unwrap();
-    let address = std::env::var("LUCK_DRAW_ADDRESS").unwrap_or_else(|_| "0.0.0.0:1314".to_string());
+
+    let web_cfg = GLOBAL_CONFIG.map(|cfg: &Config| &cfg.web).load();
     let listener = TlsListener::build()
-        .addrs(address)
-        .cert("cert.pem")
-        .key("key.pem");
+        .addrs(&*web_cfg.address)
+        .cert(&*web_cfg.cert)
+        .key(&*web_cfg.key);
     if let Err(e) = app.listen(listener).await {
         eprintln!("app listen fail: {e}");
     }

@@ -2,12 +2,12 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use anyhow::Result;
-use minitrace::Span;
 use r2d2::PooledConnection;
 use r2d2_sqlite::SqliteConnectionManager;
 use serde::Serialize;
 use tide::prelude::Deserialize;
 use tide::{Body, Response, StatusCode};
+use tracing::{info, info_span, Span};
 
 use crate::web::session::SessionExt;
 use crate::web::WebRequest;
@@ -48,41 +48,35 @@ impl MenuNode {
 }
 
 pub(crate) async fn get(req: WebRequest) -> tide::Result {
-    let mut span = Span::enter_with_local_parent("接口:菜单查询");
     let userid: usize = match req.session().get("userid") {
         Some(id) => id,
         None => return Ok(Response::from(StatusCode::Unauthorized)),
     };
     let menu_req: MenuReq = req.query()?;
 
-    span.add_properties(|| {
-        vec![
-            ("sys", menu_req.sys.to_string()),
-            ("userid", userid.to_string()),
-        ]
-    });
+    info!("sys: {}, userid: {}", menu_req.sys, userid);
 
     let conn = req.state().pool.get()?;
-    let mut span = Span::enter_with_parent("数据库:查询用户菜单", &span);
-    let menus = async_global_executor::spawn_blocking(move || query_menu(conn, userid)).await?;
-    span.add_properties(|| {
-        vec![
-            ("查询SQL", format!("select lm.menu_id,lm.parent_id,lm.menu_type,lm.menu_name,lm.page_id from ld_user lu
-           left join ld_user_role lur on lu.role_id = lur.role_id and lur.role_type=1
-           left join ld_menu lm on lur.privilege_id=lm.menu_id
-         where lu.user_id={userid} and lm.menu_status=1")),
-            ("返回菜单数", menus.len().to_string()),
-        ]
-    });
+    let span = info_span!(parent: Span::current(), "查询用户菜单").or_current();
+    let menus =
+        async_global_executor::spawn_blocking(move || query_menu(span, conn, userid)).await?;
 
     let body = Body::from_json(&menus)?;
     Ok(Response::builder(StatusCode::Ok).body(body).build())
 }
 
 fn query_menu(
+    span: Span,
     conn: PooledConnection<SqliteConnectionManager>,
     userid: usize,
 ) -> Result<Vec<RefCell<MenuNode>>> {
+    let _enter = span.enter();
+    info!(
+        "select lm.menu_id,lm.parent_id,lm.menu_type,lm.menu_name,lm.page_id from ld_user lu
+           left join ld_user_role lur on lu.role_id = lur.role_id and lur.role_type=1
+           left join ld_menu lm on lur.privilege_id=lm.menu_id
+         where lu.user_id={userid} and lm.menu_status=1"
+    );
     let mut stmt = conn.prepare(
         "select lm.menu_id,lm.parent_id,lm.menu_type,lm.menu_name,lm.page_id from ld_user lu
                left join ld_user_role lur on lu.role_id = lur.role_id and lur.role_type=1

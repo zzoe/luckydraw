@@ -2,13 +2,12 @@ use std::ffi::OsStr;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use minitrace::Span;
 use tide::{Body, Response, StatusCode};
+use tracing::info;
 
 use crate::web::WebRequest;
 
 pub(crate) async fn get(req: WebRequest) -> tide::Result {
-    let mut span = Span::enter_with_local_parent("static");
     let path = req.url().path();
     let path = path.trim_start_matches('/');
     let dir = PathBuf::from("dist");
@@ -23,7 +22,7 @@ pub(crate) async fn get(req: WebRequest) -> tide::Result {
         }
     }
 
-    span.add_property(|| ("Requested file", file_path.to_string_lossy().to_string()));
+    info!("Requested file: {}", file_path.to_string_lossy());
 
     // let file_path = AsyncPathBuf::from(file_path);
     if !file_path.starts_with(&dir) {

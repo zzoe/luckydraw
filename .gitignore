@@ -1,7 +1,8 @@
 .idea
 target
 dist
+logs
 Cargo.lock
 sqlite.db
-*.log
+config.json
 /*.pem
