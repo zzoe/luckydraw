@@ -16,7 +16,6 @@ async-global-executor = { version = "*" }
 async-session = { git = "https://gitee.com/zzoe/async-session.git", branch = "zoe" }
 async-trait = { version = "*" }
 fastrand = { version = "*" }
-#futures = { version = "*" }
 hmac = { version = "*" }
 once_cell = { version = "*" }
 r2d2 = { version = "*" }

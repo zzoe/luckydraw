@@ -70,7 +70,7 @@ impl Component for Menu {
                 match res.json::<Vec<MenuNode>>().await {
                     Ok(res) => return Msg::MenuInit(res),
                     Err(e) => {
-                        tracing::error!("{e}");
+                        log::error!("{e}");
                     }
                 }
             }
@@ -140,7 +140,7 @@ impl Component for Menu {
                 }
             }
             Msg::MenuFail => {
-                tracing::info!("Get menu fail");
+                log::info!("Get menu fail");
             }
         }
         true

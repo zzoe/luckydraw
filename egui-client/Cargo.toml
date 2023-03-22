@@ -6,13 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-egui = "*"
-eframe = { version = "*", default-feature = false, features = ["wgpu", "dark-light"] }
-tracing = "*"
 async-channel = "*"
+eframe = { version = "*", default-feature = false, features = ["wgpu", "dark-light"] }
+egui = "*"
+futures = { version = "*", features = ["executor"] }
+indextree = "*"
 serde = { version = "*", features = ["derive"] }
 serde_repr = "*"
-futures = { version = "*", features = ["executor"] }
+tracing = "*"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
