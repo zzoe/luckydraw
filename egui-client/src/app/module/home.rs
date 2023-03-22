@@ -2,19 +2,19 @@ use std::collections::HashMap;
 
 use eframe::egui;
 use eframe::egui::Context;
-use egui::Ui;
+use egui::{Align, Button, Color32, Label, Layout, Sense, Ui, Widget};
 use indextree::{Arena, NodeId};
 use serde::Deserialize;
 use serde_repr::Deserialize_repr;
 use surf::http::convert::Serialize;
 use surf::http::Method;
 use surf::Request;
-use tracing::{debug, error, info, warn};
+use tracing::{error, warn};
 
 use crate::app::PendingType;
 use crate::App;
 
-#[derive(PartialEq, Eq, Clone, Debug, Default, Deserialize_repr)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug, Default, Deserialize_repr)]
 #[repr(u8)]
 pub enum MenuType {
     #[default]
@@ -32,8 +32,6 @@ pub(crate) struct Menu {
     pub page_id: usize,
     #[serde(default = "expanded")]
     pub expanded: bool,
-    #[serde(skip)]
-    pub active: bool,
 }
 
 fn expanded() -> bool {
@@ -43,7 +41,7 @@ fn expanded() -> bool {
 pub(crate) struct Home {
     menus: Arena<Menu>,
     menu_map: HashMap<usize, NodeId>,
-    page_id: usize,
+    active_node_id: Option<NodeId>,
 }
 
 impl Default for Home {
@@ -56,7 +54,7 @@ impl Default for Home {
         Home {
             menus,
             menu_map,
-            page_id: 0,
+            active_node_id: None,
         }
     }
 }
@@ -82,7 +80,6 @@ pub(crate) fn get_menu_callback(app: &mut App, res: surf::Result) {
             if response.status().is_success() {
                 match futures::executor::block_on(response.body_json::<Vec<Menu>>()) {
                     Ok(menu_res) => {
-                        info!("获取菜单成功： {menu_res:?}");
                         let menus = &mut app.home.menus;
                         for menu in menu_res {
                             app.home.menu_map.insert(menu.menu_id, menus.new_node(menu));
@@ -98,7 +95,6 @@ pub(crate) fn get_menu_callback(app: &mut App, res: surf::Result) {
                                 let parent_menu_id = &child_node.get().parent_id;
                                 //找到其父节点id
                                 if let Some(parent_node_id) = menu_map.get(parent_menu_id) {
-                                    debug!("{parent_menu_id} - {child_menu_id}");
                                     //遍历父节点id下的每一个子节点id
                                     for brother in parent_node_id.children(menus) {
                                         //找到菜单序号比当前菜单大的第一个,插到它前面，然后循环下一个菜单
@@ -129,37 +125,63 @@ pub(crate) fn get_menu_callback(app: &mut App, res: surf::Result) {
 }
 
 pub(crate) fn show(app: &mut App, ctx: &Context) {
-    egui::SidePanel::left("menu").show(ctx, |ui| {
-        let root = app.home.menu_map.get(&0).unwrap();
-        let children = root.children(&app.home.menus).collect::<Vec<_>>();
-        for child_node_id in children {
-            show_menu(ui, app, child_node_id, 3.0);
-        }
-    });
+    egui::SidePanel::left("menu")
+        .resizable(false)
+        .show(ctx, |ui| {
+            let root = app.home.menu_map.get(&0).unwrap();
+            let children = root.children(&app.home.menus).collect::<Vec<_>>();
+            for child_node_id in children {
+                show_menu(ui, app, child_node_id, 3.0);
+            }
+        });
+
     egui::CentralPanel::default().show(ctx, |ui| {
-        // ui.heading("欢迎来到我的主页");
-        ui.label(app.home.page_id.to_string());
+        match app
+            .home
+            .active_node_id
+            .and_then(|active| app.home.menus.get(active))
+            .map(|menu| menu.get().page_id)
+            .filter(|&page_id| page_id != 0)
+        {
+            Some(page_id) => ui.heading(page_id.to_string()),
+            None => ui.heading("欢迎来到我的主页"),
+        }
     });
 }
 
 fn show_menu(ui: &mut Ui, app: &mut App, menu_node_id: NodeId, indent: f32) {
-    ui.vertical(|ui| {
-        let menu = app.home.menus.get(menu_node_id).unwrap().get();
-        ui.horizontal(|ui| {
-            ui.add_space(indent);
-            if menu.menu_type == MenuType::Item {
-                if ui.button(&menu.menu_name).clicked() {
-                    info!("{} Clicked", menu.menu_name);
-                    app.home.page_id = menu.page_id;
-                }
-            } else {
-                ui.label(&menu.menu_name);
-            }
-        });
+    ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
+        let menu = app.home.menus.get_mut(menu_node_id).unwrap().get_mut();
 
-        let children = menu_node_id.children(&app.home.menus).collect::<Vec<_>>();
-        for child_node_id in children {
-            show_menu(ui, app, child_node_id, 2.0 * indent);
+        if menu.menu_type == MenuType::Label {
+            if ui
+                .add(Label::new(&menu.menu_name).sense(Sense::click()))
+                .clicked()
+            {
+                menu.expanded = !menu.expanded;
+                app.home.active_node_id = Some(menu_node_id);
+            }
+        } else {
+            ui.spacing_mut().button_padding.x += indent;
+            let mut btn = Button::new(&menu.menu_name).wrap(false);
+
+            if let Some(active) = app.home.active_node_id {
+                if active == menu_node_id {
+                    btn = btn.fill(Color32::LIGHT_BLUE);
+                }
+            }
+
+            if btn.ui(ui).clicked() {
+                menu.expanded = !menu.expanded;
+                app.home.active_node_id = Some(menu_node_id);
+            }
+        }
+
+        if menu.expanded {
+            let children = menu_node_id.children(&app.home.menus).collect::<Vec<_>>();
+            for child_node_id in children {
+                show_menu(ui, app, child_node_id, 2.0 * indent);
+            }
         }
     });
 }
