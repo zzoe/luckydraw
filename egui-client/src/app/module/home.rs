@@ -13,6 +13,7 @@ use tracing::{error, warn};
 
 use crate::app::PendingType;
 use crate::App;
+use crate::app::module::page;
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Default, Deserialize_repr)]
 #[repr(u8)]
@@ -39,9 +40,9 @@ fn expanded() -> bool {
 }
 
 pub(crate) struct Home {
-    menus: Arena<Menu>,
+    pub(crate) menus: Arena<Menu>,
+    pub(crate) active_node_id: Option<NodeId>,
     menu_map: HashMap<usize, NodeId>,
-    active_node_id: Option<NodeId>,
 }
 
 impl Default for Home {
@@ -136,16 +137,7 @@ pub(crate) fn show(app: &mut App, ctx: &Context) {
         });
 
     egui::CentralPanel::default().show(ctx, |ui| {
-        match app
-            .home
-            .active_node_id
-            .and_then(|active| app.home.menus.get(active))
-            .map(|menu| menu.get().page_id)
-            .filter(|&page_id| page_id != 0)
-        {
-            Some(page_id) => ui.heading(page_id.to_string()),
-            None => ui.heading("欢迎来到我的主页"),
-        }
+        page::show(app, ui);
     });
 }
 
