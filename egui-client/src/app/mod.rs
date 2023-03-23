@@ -19,6 +19,7 @@ pub struct App {
     module: Module,
     login: login::Login,
     home: home::Home,
+    page1001: page::page1001::Page1001,
 }
 
 impl Default for App {
@@ -32,6 +33,7 @@ impl Default for App {
             module: Default::default(),
             login: Default::default(),
             home: Default::default(),
+            page1001: Default::default(),
         }
     }
 }
