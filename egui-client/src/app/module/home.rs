@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use eframe::egui;
 use eframe::egui::Context;
-use egui::{Align, Button, Color32, Label, Layout, Sense, Ui, Widget};
+use egui::{Align, Button, Color32, Layout, Ui, Widget};
 use indextree::{Arena, NodeId};
 use serde::Deserialize;
 use serde_repr::Deserialize_repr;
@@ -11,9 +11,9 @@ use surf::http::Method;
 use surf::Request;
 use tracing::{error, warn};
 
+use crate::app::module::page;
 use crate::app::PendingType;
 use crate::App;
-use crate::app::module::page;
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Default, Deserialize_repr)]
 #[repr(u8)]
@@ -31,12 +31,6 @@ pub(crate) struct Menu {
     pub menu_type: MenuType,
     pub menu_name: String,
     pub page_id: usize,
-    #[serde(default = "expanded")]
-    pub expanded: bool,
-}
-
-fn expanded() -> bool {
-    true
 }
 
 pub(crate) struct Home {
@@ -132,7 +126,7 @@ pub(crate) fn show(app: &mut App, ctx: &Context) {
             let root = app.home.menu_map.get(&0).unwrap();
             let children = root.children(&app.home.menus).collect::<Vec<_>>();
             for child_node_id in children {
-                show_menu(ui, app, child_node_id, 3.0);
+                show_menu(ui, app, child_node_id);
             }
         });
 
@@ -141,20 +135,18 @@ pub(crate) fn show(app: &mut App, ctx: &Context) {
     });
 }
 
-fn show_menu(ui: &mut Ui, app: &mut App, menu_node_id: NodeId, indent: f32) {
+fn show_menu(ui: &mut Ui, app: &mut App, menu_node_id: NodeId) {
     ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
         let menu = app.home.menus.get_mut(menu_node_id).unwrap().get_mut();
 
-        if menu.menu_type == MenuType::Label {
-            if ui
-                .add(Label::new(&menu.menu_name).sense(Sense::click()))
-                .clicked()
-            {
-                menu.expanded = !menu.expanded;
-                app.home.active_node_id = Some(menu_node_id);
-            }
+        if menu.menu_type != MenuType::Item {
+            ui.collapsing(menu.menu_name.clone(), |ui| {
+                let children = menu_node_id.children(&app.home.menus).collect::<Vec<_>>();
+                for child_node_id in children {
+                    show_menu(ui, app, child_node_id);
+                }
+            });
         } else {
-            ui.spacing_mut().button_padding.x += indent;
             let mut btn = Button::new(&menu.menu_name).wrap(false);
 
             if let Some(active) = app.home.active_node_id {
@@ -164,15 +156,7 @@ fn show_menu(ui: &mut Ui, app: &mut App, menu_node_id: NodeId, indent: f32) {
             }
 
             if btn.ui(ui).clicked() {
-                menu.expanded = !menu.expanded;
                 app.home.active_node_id = Some(menu_node_id);
-            }
-        }
-
-        if menu.expanded {
-            let children = menu_node_id.children(&app.home.menus).collect::<Vec<_>>();
-            for child_node_id in children {
-                show_menu(ui, app, child_node_id, 2.0 * indent);
             }
         }
     });
