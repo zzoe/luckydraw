@@ -7,8 +7,9 @@ edition = "2021"
 
 [dependencies]
 async-channel = "*"
-eframe = { version = "*", default-feature = false, features = ["wgpu", "dark-light"] }
+eframe = { version = "*", default-features = false, features = ["wgpu", "dark-light"] }
 egui = "*"
+egui_extras = "*"
 futures = { version = "*", features = ["executor"] }
 indextree = "*"
 serde = { version = "*", features = ["derive"] }
@@ -28,13 +29,4 @@ console_error_panic_hook = "*"
 tracing-wasm = "*"
 wasm-bindgen-futures = "*"
 surf = { version = "*", default-features = false, features = ["wasm-client"] }
-
-[profile.release]
-opt-level = 2 # fast and small wasm
-
-# Optimize all dependencies even in debug builds:
-[profile.dev.package."*"]
-opt-level = 2
-
-[patch.crates-io]
 

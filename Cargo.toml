@@ -29,3 +29,13 @@ time = { version = "*", features = ["macros", "formatting", "local-offset"] }
 tracing = { version = "*" }
 tracing-appender = { version = "*" }
 tracing-subscriber = { version = "*", features = ["local-time"] }
+
+[profile.release]
+opt-level = 2 # fast and small wasm
+
+# Optimize all dependencies even in debug builds:
+[profile.dev.package."*"]
+opt-level = 2
+
+[patch.crates-io]
+
