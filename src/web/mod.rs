@@ -16,6 +16,7 @@ pub(crate) mod log_ext;
 pub(crate) mod menu;
 pub(crate) mod session;
 pub(crate) mod static_file;
+pub(crate) mod user;
 
 #[derive(Clone, Debug)]
 pub(crate) struct WebState {
@@ -74,7 +75,8 @@ pub(crate) fn route(mut app: Server<WebState>) -> Server<WebState> {
     // app.at("/api/sqlite/query").post(sqlite::query);
 
     let mut api = tide::with_state(app.state().clone());
-    api.at("/menu").get(menu::get);
+    api.at("/menu").post(menu::get);
+    api.at("/user").post(user::get);
 
     let mut static_file = tide::with_state(app.state().clone());
     static_file.at("*").get(static_file::get);

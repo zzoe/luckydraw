@@ -61,8 +61,8 @@ struct MenuReq {
 
 pub(crate) fn get_menu(app: &mut App) {
     let url = app.base_url.join("/api/menu").unwrap();
-    let mut req = Request::new(Method::Get, url);
-    req.set_query(&MenuReq { sys: 1 }).unwrap();
+    let mut req = Request::new(Method::Post, url);
+    req.body_json(&MenuReq { sys: 1 }).unwrap();
 
     let serial = app.next_serial();
     app.pending.insert(serial, PendingType::GetMenu);

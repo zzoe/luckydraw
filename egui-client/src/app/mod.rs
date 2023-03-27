@@ -41,6 +41,7 @@ impl Default for App {
 pub(crate) enum PendingType {
     Login,
     GetMenu,
+    GetUser,
 }
 
 #[derive(Clone)]
@@ -124,6 +125,7 @@ impl eframe::App for App {
                 match pt {
                     PendingType::Login => login::login_callback(self, msg.res),
                     PendingType::GetMenu => home::get_menu_callback(self, msg.res),
+                    PendingType::GetUser => page::page1001::get_user_callback(self, msg.res),
                 }
             }
         }
