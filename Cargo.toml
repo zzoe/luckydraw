@@ -17,6 +17,7 @@ async-session = { git = "https://gitee.com/zzoe/async-session.git", branch = "zo
 async-trait = { version = "*" }
 fastrand = { version = "*" }
 hmac = { version = "*" }
+minstant = { version = "*" }
 once_cell = { version = "*" }
 r2d2 = { version = "*" }
 r2d2_sqlite = { version = "*", features = ["bundled"] }

@@ -10,18 +10,13 @@ use crate::context::{ContextExt, Module};
 use crate::pages::sys1::{Msg as Sys1Msg, Sys1};
 use crate::AppSys;
 
-#[derive(PartialEq, Eq, Clone, Debug, Deserialize_repr)]
+#[derive(PartialEq, Eq, Clone, Debug, Default, Deserialize_repr)]
 #[repr(u8)]
 pub enum MenuType {
+    #[default]
     Label,
     Fold,
     Item,
-}
-
-impl Default for MenuType {
-    fn default() -> Self {
-        MenuType::Label
-    }
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Default, Deserialize)]

@@ -1,7 +1,7 @@
-use serde_repr::Deserialize_repr;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use serde_repr::Deserialize_repr;
 use yew::scheduler::Shared;
 use yew::{classes, html, Component, Context, ContextProvider, Html};
 
@@ -25,18 +25,13 @@ pub enum Msg {
     SysClick(AppSys),
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Deserialize_repr)]
+#[derive(Copy, Clone, Default, Eq, PartialEq, Debug, Deserialize_repr)]
 #[repr(u8)]
 pub enum AppSys {
+    #[default]
     Welcome,
     Sys1,
     Sys2,
-}
-
-impl Default for AppSys {
-    fn default() -> Self {
-        AppSys::Welcome
-    }
 }
 
 impl Component for App {
@@ -71,7 +66,7 @@ impl Component for App {
             }
             Msg::Login(userid) => {
                 self.context.borrow_mut().userid = userid;
-                tracing::info!("userid: {}", userid);
+                log::info!("userid: {}", userid);
             }
         }
         true

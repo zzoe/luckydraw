@@ -1,6 +1,6 @@
-use web_client::App;
+use yew_client::App;
 
 fn main() {
-    wasm_logger::init(wasm_logger::Config::new(tracing::Level::Debug));
+    wasm_logger::init(wasm_logger::Config::new(log::Level::Debug));
     yew::Renderer::<App>::new().render();
 }

@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 use std::iter::repeat_with;
 
-use crate::config::{Config, GLOBAL_CONFIG};
 use anyhow::Result;
 use arc_swap::access::Access;
 use async_session::MemoryStore;
@@ -10,6 +9,8 @@ use r2d2_sqlite::SqliteConnectionManager;
 use tide::{Request, Server};
 use tide_rustls::TlsListener;
 use time::Duration;
+
+use crate::config::{Config, GLOBAL_CONFIG};
 
 pub(crate) mod auth;
 pub(crate) mod log_ext;
@@ -45,6 +46,12 @@ pub(crate) async fn listen() {
         .cert(&*web_cfg.cert)
         .key(&*web_cfg.key);
     if let Err(e) = app.listen(listener).await {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            println!(
+                "install https://github.com/FiloSottile/mkcert
+$ mkcert -key-file key.pem -cert-file cert.pem localhost 127.0.0.1 ::1"
+            );
+        }
         eprintln!("app listen fail: {e}");
     }
 }

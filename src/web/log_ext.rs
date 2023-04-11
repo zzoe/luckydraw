@@ -23,7 +23,7 @@ struct LogMiddlewareHasBeenRun;
 impl<State: Clone + Send + Sync + 'static> Middleware<State> for LogMiddleware {
     async fn handle(&self, mut req: Request<State>, next: Next<'_, State>) -> Result {
         let span = info_span!("", seq = field::Empty,);
-        let start = std::time::Instant::now();
+        let start = minstant::Instant::now();
 
         if req.ext::<LogMiddlewareHasBeenRun>().is_some() {
             return Ok(next.run(req).await);

@@ -66,7 +66,7 @@ impl Component for Login {
             Msg::UserInput(user_account) => self.user_account = user_account,
             Msg::PassInput(password) => self.password = password,
             Msg::InputErr => {
-                tracing::info!("Input Error");
+                log::info!("Input Error");
             }
         }
 

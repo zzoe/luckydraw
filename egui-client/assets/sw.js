@@ -1,12 +1,12 @@
-var cacheName = 'egui-client-pwa';
-var filesToCache = [
+const cacheName = 'egui-client-pwa';
+const filesToCache = [
   './',
   './index.html',
   './egui_client.js',
   './egui_client_bg.wasm',
 ];
 
-/* Start the service worker and cache all of the app's content */
+/* Start the service worker and cache all the app's content */
 self.addEventListener('install', function (e) {
   e.waitUntil(
     caches.open(cacheName).then(function (cache) {
