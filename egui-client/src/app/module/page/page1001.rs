@@ -57,7 +57,7 @@ pub(crate) fn show(app: &mut App, ui: &mut Ui) {
                 .trim_start_matches('0')
                 .to_string();
             user_phone.truncate(11);
-            app.page1001.user.user_phone = user_phone.parse().unwrap_or_default();
+            app.page1001.user.user_phone = user_phone.parse().unwrap_or(1);
         };
 
         ui.label("邮箱：");
@@ -74,7 +74,7 @@ pub(crate) fn show(app: &mut App, ui: &mut Ui) {
 
     let height = ui.spacing().interact_size.y;
     TableBuilder::new(ui)
-        .columns(Column::remainder(), 6)
+        .columns(Column::auto(), 7)
         .striped(true)
         .resizable(true)
         .header(height, |mut header| {
@@ -95,6 +95,9 @@ pub(crate) fn show(app: &mut App, ui: &mut Ui) {
             });
             header.col(|ui| {
                 ui.heading("角色ID");
+            });
+            header.col(|ui| {
+                ui.heading("操作");
             });
         })
         .body(|mut body| {
@@ -118,19 +121,29 @@ pub(crate) fn show(app: &mut App, ui: &mut Ui) {
                     row.col(|ui| {
                         ui.label(user.role_id.to_string());
                     });
+                    row.col(|ui| {
+                        ui.horizontal(|ui| {
+                            if ui.button("修改").clicked() {
+                                info!("修改用户信息 {:?}", user);
+                                modify_user(app, user);
+                            }
+                            if ui.button("删除").clicked() {
+                                info!("删除用户信息 {:?}", user);
+                                delete_user(app, user);
+                            }
+                        });
+                    });
                 })
             }
         });
 }
 
-fn get_user(app: &mut App) {
+fn get_user(app: &App) {
     let url = app.base_url.join("/api/user").unwrap();
     let mut req = Request::new(Method::Post, url);
-    req.body_json(&app.page1001.user).unwrap();
 
-    let serial = app.next_serial();
-    app.pending.insert(serial, PendingType::GetUser);
-    app.send(serial, req);
+    req.body_json(&app.page1001.user).unwrap();
+    app.send(PendingType::GetUser, req);
 }
 
 pub(crate) fn get_user_callback(app: &mut App, res: surf::Result) {
@@ -138,13 +151,31 @@ pub(crate) fn get_user_callback(app: &mut App, res: surf::Result) {
         Ok(mut response) => {
             if response.status().is_success() {
                 match futures::executor::block_on(response.body_json::<Vec<User>>()) {
-                    Ok(users) => app.page1001.users = users,
+                    Ok(users) => {
+                        app.page1001.users = users;
+                        return;
+                    }
                     Err(e) => error!("解析用户数据失败: {e}"),
                 }
-            } else {
-                error!("查询用户信息失败： {response:?}");
             }
+            error!("查询用户信息失败： {response:?}");
         }
         Err(e) => error!("查询用户信息异常： {e}"),
     }
+}
+
+fn modify_user(app: &App, user: &User) {
+    let url = app.base_url.join("/api/user").unwrap();
+    let mut req = Request::new(Method::Put, url);
+
+    req.body_json(user).unwrap();
+    app.send(PendingType::ModifyUser, req);
+}
+
+fn delete_user(app: &App, user: &User) {
+    let url = app.base_url.join("/api/user").unwrap();
+    let mut req = Request::new(Method::Delete, url);
+
+    req.body_json(user).unwrap();
+    app.send(PendingType::DeleteUser, req);
 }

@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use async_channel::{unbounded, Receiver, Sender};
@@ -11,8 +13,8 @@ use module::*;
 mod module;
 
 pub struct App {
-    serial: usize,
-    pending: HashMap<usize, PendingType>,
+    serial: AtomicUsize,
+    pending: RefCell<HashMap<usize, PendingType>>,
     unbounded_channel: UnboundedChannel,
     base_url: Url,
     client: Client,
@@ -42,6 +44,8 @@ pub(crate) enum PendingType {
     Login,
     GetMenu,
     GetUser,
+    ModifyUser,
+    DeleteUser,
 }
 
 #[derive(Clone)]
@@ -86,15 +90,14 @@ impl App {
         }
     }
 
-    pub fn next_serial(&mut self) -> usize {
-        self.serial += 1;
-        self.serial
-    }
-
     #[cfg(target_arch = "wasm32")]
-    pub(crate) fn send(&self, serial: usize, req: Request) {
+    pub(crate) fn send(&self, req_type: PendingType, req: Request) {
+        let serial = self.serial.fetch_add(1, Ordering::Relaxed);
+        self.pending.borrow_mut().insert(serial, req_type);
+
         let client = self.client.clone();
         let sender = self.unbounded_channel.sender.clone();
+
         wasm_bindgen_futures::spawn_local(async move {
             let res = client.send(req).await;
             if let Err(e) = sender.send(AsyncResult::new(serial, res)).await {
@@ -104,9 +107,13 @@ impl App {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn send(&self, serial: usize, req: Request) {
+    pub(crate) fn send(&self, req_type: PendingType, req: Request) {
+        let serial = self.serial.fetch_add(1, Ordering::Relaxed);
+        self.pending.borrow_mut().insert(serial, req_type);
+
         let client = self.client.clone();
         let sender = self.unbounded_channel.sender.clone();
+
         async_global_executor::spawn(async move {
             tracing::info!("{serial}: {req:?}");
             let res = client.send(req).await;
@@ -121,11 +128,14 @@ impl App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
         while let Ok(msg) = self.unbounded_channel.receiver.try_recv() {
-            if let Some(pt) = self.pending.remove(&msg.serial) {
+            let opt_pending = self.pending.borrow_mut().remove(&msg.serial);
+            if let Some(pt) = opt_pending {
                 match pt {
                     PendingType::Login => login::login_callback(self, msg.res),
                     PendingType::GetMenu => home::get_menu_callback(self, msg.res),
                     PendingType::GetUser => page::page1001::get_user_callback(self, msg.res),
+                    PendingType::ModifyUser => {}
+                    PendingType::DeleteUser => {}
                 }
             }
         }

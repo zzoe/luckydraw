@@ -3,6 +3,7 @@ use eframe::egui::Context;
 use egui::{Button, FontSelection, Key, TextEdit, Ui, Vec2, Widget, WidgetText};
 use serde::Serialize;
 use surf::http::Method;
+use tracing::error;
 
 use crate::app::*;
 
@@ -53,15 +54,13 @@ impl Args {
     }
 }
 
-fn login(app: &mut App) {
+fn login(app: &App) {
     let url = app.base_url.join("/login").unwrap();
     let mut req = Request::new(Method::Post, url);
     let args = Args::new(app.login.user_account.clone(), app.login.password.clone());
-    req.body_json(&args).unwrap();
 
-    let serial = app.next_serial();
-    app.pending.insert(serial, PendingType::Login);
-    app.send(serial, req);
+    req.body_json(&args).unwrap();
+    app.send(PendingType::Login, req);
 }
 
 pub(crate) fn login_callback(app: &mut App, res: surf::Result) {
@@ -72,11 +71,10 @@ pub(crate) fn login_callback(app: &mut App, res: surf::Result) {
                 app.module = Module::Home;
                 home::get_menu(app);
                 return;
-            } else {
-                tracing::error!("登录失败： {:?}", response);
             }
+            error!("登录失败： {:?}", response);
         }
-        Err(e) => tracing::error!("登录异常： {e}"),
+        Err(e) => error!("登录异常： {e}"),
     }
     app.login.status = LoginStatus::Normal;
 }
