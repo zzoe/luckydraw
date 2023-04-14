@@ -13,6 +13,7 @@ egui_extras = "*"
 futures = { version = "*", features = ["executor"] }
 indextree = "*"
 serde = { version = "*", features = ["derive"] }
+serde_json = "*"
 serde_repr = "*"
 tracing = "*"
 

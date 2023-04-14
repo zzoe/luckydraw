@@ -15,7 +15,7 @@ mod module;
 pub struct App {
     serial: AtomicUsize,
     pending: RefCell<HashMap<usize, PendingType>>,
-    unbounded_channel: UnboundedChannel,
+    surf_channel: UnboundedChannel,
     base_url: Url,
     client: Client,
     module: Module,
@@ -29,7 +29,7 @@ impl Default for App {
         App {
             serial: Default::default(),
             pending: Default::default(),
-            unbounded_channel: Default::default(),
+            surf_channel: Default::default(),
             base_url: Url::parse("https://127.0.0.1:1314/").unwrap(),
             client: Default::default(),
             module: Default::default(),
@@ -96,7 +96,7 @@ impl App {
         self.pending.borrow_mut().insert(serial, req_type);
 
         let client = self.client.clone();
-        let sender = self.unbounded_channel.sender.clone();
+        let sender = self.surf_channel.sender.clone();
 
         wasm_bindgen_futures::spawn_local(async move {
             let res = client.send(req).await;
@@ -112,7 +112,7 @@ impl App {
         self.pending.borrow_mut().insert(serial, req_type);
 
         let client = self.client.clone();
-        let sender = self.unbounded_channel.sender.clone();
+        let sender = self.surf_channel.sender.clone();
 
         async_global_executor::spawn(async move {
             tracing::info!("{serial}: {req:?}");
@@ -127,7 +127,7 @@ impl App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
-        while let Ok(msg) = self.unbounded_channel.receiver.try_recv() {
+        while let Ok(msg) = self.surf_channel.receiver.try_recv() {
             let opt_pending = self.pending.borrow_mut().remove(&msg.serial);
             if let Some(pt) = opt_pending {
                 match pt {

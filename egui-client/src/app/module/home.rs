@@ -61,9 +61,9 @@ struct MenuReq {
 
 pub(crate) fn get_menu(app: &App) {
     let url = app.base_url.join("/api/menu").unwrap();
-    let mut req = Request::new(Method::Post, url);
+    let mut req = Request::new(Method::Get, url);
 
-    req.body_json(&MenuReq { sys: 1 }).unwrap();
+    req.set_query(&MenuReq { sys: 1 }).unwrap();
     app.send(PendingType::GetMenu, req);
 }
 

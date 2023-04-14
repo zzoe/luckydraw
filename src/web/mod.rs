@@ -82,8 +82,10 @@ pub(crate) fn route(mut app: Server<WebState>) -> Server<WebState> {
     // app.at("/api/sqlite/query").post(sqlite::query);
 
     let mut api = tide::with_state(app.state().clone());
-    api.at("/menu").post(menu::get);
+    api.at("/menu").get(menu::get);
+    api.at("/user").get(user::get);
     api.at("/user").post(user::get);
+    api.at("/user").delete(user::get);
 
     let mut static_file = tide::with_state(app.state().clone());
     static_file.at("*").get(static_file::get);

@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = ["dioxus-client", "egui-client", "yew-client", "init_data"]
+members = ["dioxus-client", "egui-client", "init_data", "yew-client"]
 
 [dependencies]
 anyhow = { version = "*" }
@@ -21,6 +21,7 @@ minstant = { version = "*" }
 once_cell = { version = "*" }
 r2d2 = { version = "*" }
 r2d2_sqlite = { version = "*", features = ["bundled"] }
+rusqlite = { version = "*" }
 serde = { version = "*", features = ["derive"] }
 serde_json = { version = "*" }
 sha2 = { version = "*" }
@@ -30,6 +31,7 @@ time = { version = "*", features = ["macros", "formatting", "local-offset"] }
 tracing = { version = "*" }
 tracing-appender = { version = "*" }
 tracing-subscriber = { version = "*", features = ["local-time"] }
+util = { git = "https://gitee.com/zzoe/util.git", features = ["json_display"] }
 
 [profile.release]
 opt-level = 2 # fast and small wasm

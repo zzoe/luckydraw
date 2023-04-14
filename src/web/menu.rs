@@ -42,12 +42,12 @@ impl Menu {
     }
 }
 
-pub(crate) async fn get(mut req: WebRequest) -> tide::Result {
+pub(crate) async fn get(req: WebRequest) -> tide::Result {
     let userid: usize = match req.session().get("userid") {
         Some(id) => id,
         None => return Ok(Response::from(StatusCode::Unauthorized)),
     };
-    let menu_req: MenuReq = req.body_json().await?;
+    let menu_req: MenuReq = req.query()?;
 
     info!("sys: {}, userid: {}", menu_req.sys, userid);
 

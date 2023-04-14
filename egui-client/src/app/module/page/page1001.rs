@@ -1,3 +1,6 @@
+use std::cell::Cell;
+use std::fmt::{Display, Formatter};
+
 use egui::{TextEdit, Ui};
 use egui_extras::{Column, TableBuilder};
 use serde::{Deserialize, Serialize};
@@ -12,6 +15,7 @@ use crate::App;
 pub(crate) struct Page1001 {
     user: User,
     users: Vec<User>,
+    modify_window: Cell<bool>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -19,10 +23,16 @@ struct User {
     user_account: String,
     user_nickname: String,
     user_name: String,
-    user_phone: usize,
+    user_phone: u64,
     user_email: String,
     #[serde(skip_serializing)]
     role_id: usize,
+}
+
+impl Display for User {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", serde_json::to_string(self).unwrap())
+    }
 }
 
 pub(crate) fn show(app: &mut App, ui: &mut Ui) {
@@ -45,7 +55,14 @@ pub(crate) fn show(app: &mut App, ui: &mut Ui) {
             .show(ui);
 
         ui.label("手机号：");
-        let mut user_phone = app.page1001.user.user_phone.to_string();
+        let mut user_phone = app
+            .page1001
+            .user
+            .user_phone
+            .to_string()
+            .trim_start_matches('0')
+            .to_string();
+
         if TextEdit::singleline(&mut user_phone)
             .desired_width(edit_width)
             .show(ui)
@@ -57,7 +74,7 @@ pub(crate) fn show(app: &mut App, ui: &mut Ui) {
                 .trim_start_matches('0')
                 .to_string();
             user_phone.truncate(11);
-            app.page1001.user.user_phone = user_phone.parse().unwrap_or(1);
+            app.page1001.user.user_phone = user_phone.parse().unwrap_or_default();
         };
 
         ui.label("邮箱：");
@@ -66,15 +83,27 @@ pub(crate) fn show(app: &mut App, ui: &mut Ui) {
             .show(ui);
 
         if ui.button("查询").clicked() {
-            info!("查询用户信息 {:?}", app.page1001);
+            info!("查询用户信息 {:?}", app.page1001.user);
             get_user(app);
         }
     });
     ui.separator();
 
+    if app.page1001.modify_window.get() {
+        egui::Window::new("My Window")
+            // .open(&mut app.page1001.modify_window.borrow_mut())
+            .show(ui.ctx(), |ui| {
+                ui.label("This is my window!");
+                if ui.button("Close").clicked() {
+                    app.page1001.modify_window.set(false);
+                    // 如果上面保留了关闭的叉叉，这里好像只能用消息传递避免数据竞争
+                }
+            });
+    }
+
     let height = ui.spacing().interact_size.y;
     TableBuilder::new(ui)
-        .columns(Column::auto(), 7)
+        .columns(Column::remainder(), 7)
         .striped(true)
         .resizable(true)
         .header(height, |mut header| {
@@ -124,6 +153,8 @@ pub(crate) fn show(app: &mut App, ui: &mut Ui) {
                     row.col(|ui| {
                         ui.horizontal(|ui| {
                             if ui.button("修改").clicked() {
+                                let open = app.page1001.modify_window.get();
+                                app.page1001.modify_window.set(!open);
                                 info!("修改用户信息 {:?}", user);
                                 modify_user(app, user);
                             }
@@ -140,9 +171,9 @@ pub(crate) fn show(app: &mut App, ui: &mut Ui) {
 
 fn get_user(app: &App) {
     let url = app.base_url.join("/api/user").unwrap();
-    let mut req = Request::new(Method::Post, url);
+    let mut req = Request::new(Method::Get, url);
 
-    req.body_json(&app.page1001.user).unwrap();
+    req.set_query(&app.page1001.user).unwrap();
     app.send(PendingType::GetUser, req);
 }
 
@@ -166,7 +197,7 @@ pub(crate) fn get_user_callback(app: &mut App, res: surf::Result) {
 
 fn modify_user(app: &App, user: &User) {
     let url = app.base_url.join("/api/user").unwrap();
-    let mut req = Request::new(Method::Put, url);
+    let mut req = Request::new(Method::Post, url);
 
     req.body_json(user).unwrap();
     app.send(PendingType::ModifyUser, req);
