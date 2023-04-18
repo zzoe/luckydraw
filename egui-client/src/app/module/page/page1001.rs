@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-use egui::{Align2, Context, TextEdit, Ui, Vec2, Window};
+use egui::{Align2, Context, ScrollArea, TextEdit, Ui, Vec2, Window};
 use egui_extras::{Column, TableBuilder};
 use serde::{Deserialize, Serialize};
 use surf::http::Method;
@@ -25,7 +25,7 @@ pub(crate) fn show(app: &mut App, ctx: &Context, ui: &mut Ui) {
     ui.add_enabled_ui(!page1001.modify_window && !page1001.delete_window, |ui| {
         show_search(app, ctx, ui);
         ui.separator();
-        show_list(&mut app.page.page1001, ctx, ui)
+        ScrollArea::both().show(ui, |ui| show_list(&mut app.page.page1001, ctx, ui));
     });
     show_modify_window(app, ctx, ui);
     show_delete_window(app, ctx, ui);
@@ -106,62 +106,6 @@ fn show_search(app: &mut App, _ctx: &Context, ui: &mut Ui) {
     });
 }
 
-fn show_modify_window(app: &mut App, ctx: &Context, _ui: &mut Ui) {
-    let App {
-        inner_http,
-        page: Page { page1001, .. },
-    } = app;
-
-    if page1001.modify_window {
-        if let Some(user) = page1001.users.get(page1001.user_row_index) {
-            let mut open = page1001.modify_window;
-            Window::new("修改用户信息")
-                .collapsible(false)
-                .resizable(false)
-                .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
-                .open(&mut open)
-                .show(ctx, |ui| {
-                    if ui.button("Submit").clicked() {
-                        modify_user(inner_http, user);
-                        page1001.modify_window = false;
-                    }
-                    if ui.button("Close").clicked() {
-                        page1001.modify_window = false;
-                    }
-                });
-            page1001.modify_window &= open;
-        }
-    }
-}
-
-fn show_delete_window(app: &mut App, ctx: &Context, _ui: &mut Ui) {
-    let App {
-        inner_http,
-        page: Page { page1001, .. },
-    } = app;
-
-    if page1001.delete_window {
-        if let Some(user) = page1001.users.get(page1001.user_row_index) {
-            let mut open = page1001.delete_window;
-            Window::new("删除用户")
-                .collapsible(false)
-                .resizable(false)
-                .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
-                .open(&mut open)
-                .show(ctx, |ui| {
-                    if ui.button("确认").clicked() {
-                        delete_user(inner_http, user);
-                        page1001.delete_window = false;
-                    }
-                    if ui.button("取消").clicked() {
-                        page1001.delete_window = false;
-                    }
-                });
-            page1001.delete_window &= open;
-        }
-    }
-}
-
 fn show_list(page1001: &mut Page1001, _ctx: &Context, ui: &mut Ui) {
     let height = ui.spacing().interact_size.y;
     TableBuilder::new(ui)
@@ -229,6 +173,71 @@ fn show_list(page1001: &mut Page1001, _ctx: &Context, ui: &mut Ui) {
                 }
             });
         });
+}
+
+fn show_modify_window(app: &mut App, ctx: &Context, _ui: &mut Ui) {
+    let App {
+        inner_http,
+        page: Page { page1001, .. },
+    } = app;
+
+    if page1001.modify_window {
+        if let Some(user) = page1001.users.get(page1001.user_row_index) {
+            let mut open = page1001.modify_window;
+            Window::new("修改用户信息")
+                .collapsible(false)
+                .resizable(false)
+                .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    let mut edit = String::from("edit");
+                    ui.vertical(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.label("Label:");
+                            ui.text_edit_singleline(&mut edit);
+                        });
+                        ui.horizontal(|ui| {
+                            if ui.button("Submit").clicked() {
+                                modify_user(inner_http, user);
+                                page1001.modify_window = false;
+                            }
+                            if ui.button("Close").clicked() {
+                                page1001.modify_window = false;
+                            }
+                        });
+                    });
+                });
+            page1001.modify_window &= open;
+        }
+    }
+}
+
+fn show_delete_window(app: &mut App, ctx: &Context, _ui: &mut Ui) {
+    let App {
+        inner_http,
+        page: Page { page1001, .. },
+    } = app;
+
+    if page1001.delete_window {
+        if let Some(user) = page1001.users.get(page1001.user_row_index) {
+            let mut open = page1001.delete_window;
+            Window::new("删除用户")
+                .collapsible(false)
+                .resizable(false)
+                .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    if ui.button("确认").clicked() {
+                        delete_user(inner_http, user);
+                        page1001.delete_window = false;
+                    }
+                    if ui.button("取消").clicked() {
+                        page1001.delete_window = false;
+                    }
+                });
+            page1001.delete_window &= open;
+        }
+    }
 }
 
 fn get_user(app: &mut App) {
