@@ -1,6 +1,5 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::ops::Deref;
 use std::time::Duration;
 
 use async_channel::{unbounded, Receiver, Sender};
@@ -10,33 +9,61 @@ use surf::{Client, Config, Request, Url};
 
 use module::*;
 
+use crate::app::module::page::Page;
+
 mod module;
 
+#[derive(Default)]
 pub struct App {
-    serial: AtomicUsize,
-    pending: RefCell<HashMap<usize, PendingType>>,
-    surf_channel: UnboundedChannel,
-    base_url: Url,
-    client: Client,
-    module: Module,
-    login: login::Login,
-    home: home::Home,
-    page1001: page::page1001::Page1001,
+    inner_http: InnerHttp,
+    page: Page,
 }
 
-impl Default for App {
-    fn default() -> Self {
-        App {
-            serial: Default::default(),
-            pending: Default::default(),
-            surf_channel: Default::default(),
-            base_url: Url::parse("https://127.0.0.1:1314/").unwrap(),
-            client: Default::default(),
-            module: Default::default(),
-            login: Default::default(),
-            home: Default::default(),
-            page1001: Default::default(),
+#[derive(Default)]
+struct InnerHttp {
+    serial: usize,
+    pending: HashMap<usize, PendingType>,
+    surf_channel: UnboundedChannel,
+    base_url: BaseUrl,
+    client: Client,
+}
+
+impl InnerHttp {
+    fn new() -> Self {
+        InnerHttp {
+            client: Config::new()
+                .set_timeout(Some(Duration::from_secs(30)))
+                .try_into()
+                .unwrap(),
+            ..Default::default()
         }
+    }
+
+    pub(crate) fn send(&mut self, req_type: PendingType, req: Request) {
+        let serial = self.serial;
+        self.serial += 1;
+        self.pending.insert(serial, req_type);
+
+        let client = self.client.clone();
+        let sender = self.surf_channel.sender.clone();
+
+        #[cfg(target_arch = "wasm32")]
+        wasm_bindgen_futures::spawn_local(async move {
+            let res = client.send(req).await;
+            if let Err(e) = sender.send(AsyncResult::new(serial, res)).await {
+                tracing::error!("收到异步响应后，往通道发送结果时报错 {serial}：{e}");
+            }
+        });
+
+        #[cfg(not(target_arch = "wasm32"))]
+        async_global_executor::spawn(async move {
+            tracing::info!("{serial}: {req:?}");
+            let res = client.send(req).await;
+            if let Err(e) = sender.send(AsyncResult::new(serial, res)).await {
+                tracing::error!("收到异步响应后，往通道发送结果时报错 {serial}：{e}");
+            };
+        })
+        .detach();
     }
 }
 
@@ -61,6 +88,22 @@ impl Default for UnboundedChannel {
     }
 }
 
+pub(crate) struct BaseUrl(Url);
+
+impl Default for BaseUrl {
+    fn default() -> Self {
+        BaseUrl(Url::parse("https://127.0.0.1:1314/").unwrap())
+    }
+}
+
+impl Deref for BaseUrl {
+    type Target = Url;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 pub(crate) struct AsyncResult {
     serial: usize,
     res: surf::Result,
@@ -79,57 +122,17 @@ impl App {
         // egui_ctx.set_visuals(egui::Visuals::dark());
         // egui_ctx.set_debug_on_hover(true);
 
-        let client: Client = Config::new()
-            .set_timeout(Some(Duration::from_secs(30)))
-            .try_into()
-            .unwrap();
-
         App {
-            client,
+            inner_http: InnerHttp::new(),
             ..Default::default()
         }
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub(crate) fn send(&self, req_type: PendingType, req: Request) {
-        let serial = self.serial.fetch_add(1, Ordering::Relaxed);
-        self.pending.borrow_mut().insert(serial, req_type);
-
-        let client = self.client.clone();
-        let sender = self.surf_channel.sender.clone();
-
-        wasm_bindgen_futures::spawn_local(async move {
-            let res = client.send(req).await;
-            if let Err(e) = sender.send(AsyncResult::new(serial, res)).await {
-                tracing::error!("收到异步响应后，往通道发送结果时报错 {serial}： {e}");
-            }
-        });
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn send(&self, req_type: PendingType, req: Request) {
-        let serial = self.serial.fetch_add(1, Ordering::Relaxed);
-        self.pending.borrow_mut().insert(serial, req_type);
-
-        let client = self.client.clone();
-        let sender = self.surf_channel.sender.clone();
-
-        async_global_executor::spawn(async move {
-            tracing::info!("{serial}: {req:?}");
-            let res = client.send(req).await;
-            if let Err(e) = sender.send(AsyncResult::new(serial, res)).await {
-                tracing::error!("收到异步响应后，往通道发送结果时报错 {serial}： {e}");
-            };
-        })
-        .detach();
     }
 }
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
-        while let Ok(msg) = self.surf_channel.receiver.try_recv() {
-            let opt_pending = self.pending.borrow_mut().remove(&msg.serial);
-            if let Some(pt) = opt_pending {
+        while let Ok(msg) = self.inner_http.surf_channel.receiver.try_recv() {
+            if let Some(pt) = self.inner_http.pending.remove(&msg.serial) {
                 match pt {
                     PendingType::Login => login::login_callback(self, msg.res),
                     PendingType::GetMenu => home::get_menu_callback(self, msg.res),
@@ -140,7 +143,7 @@ impl eframe::App for App {
             }
         }
 
-        match self.module {
+        match self.page.module {
             Module::Login => login::show(self, ctx),
             Module::Home => home::show(self, ctx),
         }

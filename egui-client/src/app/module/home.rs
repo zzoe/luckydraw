@@ -12,6 +12,7 @@ use surf::Request;
 use tracing::{error, warn};
 
 use crate::app::module::page;
+use crate::app::module::page::Page;
 use crate::app::PendingType;
 use crate::App;
 
@@ -59,26 +60,33 @@ struct MenuReq {
     sys: usize,
 }
 
-pub(crate) fn get_menu(app: &App) {
-    let url = app.base_url.join("/api/menu").unwrap();
+pub(crate) fn get_menu(app: &mut App) {
+    let App { inner_http, .. } = app;
+
+    let url = inner_http.base_url.join("/api/menu").unwrap();
     let mut req = Request::new(Method::Get, url);
 
     req.set_query(&MenuReq { sys: 1 }).unwrap();
-    app.send(PendingType::GetMenu, req);
+    inner_http.send(PendingType::GetMenu, req);
 }
 
 pub(crate) fn get_menu_callback(app: &mut App, res: surf::Result) {
+    let App {
+        page: Page { home, .. },
+        ..
+    } = app;
+
     match res {
         Ok(mut response) => {
             if response.status().is_success() {
                 match futures::executor::block_on(response.body_json::<Vec<Menu>>()) {
                     Ok(menu_res) => {
-                        let menus = &mut app.home.menus;
+                        let menus = &mut home.menus;
                         for menu in menu_res {
-                            app.home.menu_map.insert(menu.menu_id, menus.new_node(menu));
+                            home.menu_map.insert(menu.menu_id, menus.new_node(menu));
                         }
 
-                        let menu_map = &app.home.menu_map;
+                        let menu_map = &home.menu_map;
                         //遍历每一个菜单节点id
                         'LOOP: for (&child_menu_id, &child_node_id) in
                             menu_map.iter().filter(|(&id, _)| id != 0)
@@ -118,43 +126,48 @@ pub(crate) fn get_menu_callback(app: &mut App, res: surf::Result) {
 }
 
 pub(crate) fn show(app: &mut App, ctx: &Context) {
+    let App {
+        page: Page { home, .. },
+        ..
+    } = app;
+
     egui::SidePanel::left("menu")
         .resizable(false)
         .show(ctx, |ui| {
-            let root = app.home.menu_map.get(&0).unwrap();
-            let children = root.children(&app.home.menus).collect::<Vec<_>>();
+            let root = home.menu_map.get(&0).unwrap();
+            let children = root.children(&home.menus).collect::<Vec<_>>();
             for child_node_id in children {
-                show_menu(ui, app, child_node_id);
+                show_menu(ui, home, child_node_id);
             }
         });
 
     egui::CentralPanel::default().show(ctx, |ui| {
-        page::show(app, ui);
+        page::show(app, ctx, ui);
     });
 }
 
-fn show_menu(ui: &mut Ui, app: &mut App, menu_node_id: NodeId) {
+fn show_menu(ui: &mut Ui, home: &mut Home, menu_node_id: NodeId) {
     ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
-        let menu = app.home.menus.get_mut(menu_node_id).unwrap().get_mut();
+        let menu = home.menus.get_mut(menu_node_id).unwrap().get_mut();
 
         if menu.menu_type != MenuType::Item {
             ui.collapsing(menu.menu_name.clone(), |ui| {
-                let children = menu_node_id.children(&app.home.menus).collect::<Vec<_>>();
+                let children = menu_node_id.children(&home.menus).collect::<Vec<_>>();
                 for child_node_id in children {
-                    show_menu(ui, app, child_node_id);
+                    show_menu(ui, home, child_node_id);
                 }
             });
         } else {
             let mut btn = Button::new(&menu.menu_name).wrap(false);
 
-            if let Some(active) = app.home.active_node_id {
+            if let Some(active) = home.active_node_id {
                 if active == menu_node_id {
                     btn = btn.fill(Color32::LIGHT_BLUE);
                 }
             }
 
             if btn.ui(ui).clicked() {
-                app.home.active_node_id = Some(menu_node_id);
+                home.active_node_id = Some(menu_node_id);
             }
         }
     });

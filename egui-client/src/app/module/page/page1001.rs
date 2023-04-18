@@ -1,21 +1,40 @@
-use std::cell::Cell;
 use std::fmt::{Display, Formatter};
 
-use egui::{TextEdit, Ui};
+use egui::{Align2, Context, TextEdit, Ui, Vec2, Window};
 use egui_extras::{Column, TableBuilder};
 use serde::{Deserialize, Serialize};
 use surf::http::Method;
 use surf::Request;
 use tracing::{error, info};
 
-use crate::app::PendingType;
+use crate::app::module::page::Page;
+use crate::app::{InnerHttp, PendingType};
 use crate::App;
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Page1001 {
-    user: User,
+    search_user: User,
     users: Vec<User>,
-    modify_window: Cell<bool>,
+    modify_window: bool,
+    delete_window: bool,
+    user_row_index: usize,
+}
+
+pub(crate) fn show(app: &mut App, ctx: &Context, ui: &mut Ui) {
+    let page1001 = &app.page.page1001;
+    ui.add_enabled_ui(!page1001.modify_window && !page1001.delete_window, |ui| {
+        show_search(app, ctx, ui);
+        ui.separator();
+        show_list(&mut app.page.page1001, ctx, ui)
+    });
+    show_modify_window(app, ctx, ui);
+    show_delete_window(app, ctx, ui);
+}
+
+impl Display for User {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", serde_json::to_string(self).unwrap())
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -29,35 +48,33 @@ struct User {
     role_id: usize,
 }
 
-impl Display for User {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", serde_json::to_string(self).unwrap())
-    }
-}
-
-pub(crate) fn show(app: &mut App, ui: &mut Ui) {
+fn show_search(app: &mut App, _ctx: &Context, ui: &mut Ui) {
     ui.horizontal_wrapped(|ui| {
+        let App {
+            page: Page { page1001, .. },
+            ..
+        } = app;
+
         let edit_width = 200.0;
 
         ui.label("账号：");
-        TextEdit::singleline(&mut app.page1001.user.user_account)
+        TextEdit::singleline(&mut page1001.search_user.user_account)
             .desired_width(edit_width)
             .show(ui);
 
         ui.label("昵称：");
-        TextEdit::singleline(&mut app.page1001.user.user_nickname)
+        TextEdit::singleline(&mut page1001.search_user.user_nickname)
             .desired_width(edit_width)
             .show(ui);
 
         ui.label("姓名：");
-        TextEdit::singleline(&mut app.page1001.user.user_name)
+        TextEdit::singleline(&mut page1001.search_user.user_name)
             .desired_width(edit_width)
             .show(ui);
 
         ui.label("手机号：");
-        let mut user_phone = app
-            .page1001
-            .user
+        let mut user_phone = page1001
+            .search_user
             .user_phone
             .to_string()
             .trim_start_matches('0')
@@ -74,33 +91,78 @@ pub(crate) fn show(app: &mut App, ui: &mut Ui) {
                 .trim_start_matches('0')
                 .to_string();
             user_phone.truncate(11);
-            app.page1001.user.user_phone = user_phone.parse().unwrap_or_default();
+            page1001.search_user.user_phone = user_phone.parse().unwrap_or_default();
         };
 
         ui.label("邮箱：");
-        TextEdit::singleline(&mut app.page1001.user.user_email)
+        TextEdit::singleline(&mut page1001.search_user.user_email)
             .desired_width(edit_width)
             .show(ui);
 
         if ui.button("查询").clicked() {
-            info!("查询用户信息 {:?}", app.page1001.user);
+            info!("查询用户信息 {:?}", page1001.search_user);
             get_user(app);
         }
     });
-    ui.separator();
+}
 
-    if app.page1001.modify_window.get() {
-        egui::Window::new("My Window")
-            // .open(&mut app.page1001.modify_window.borrow_mut())
-            .show(ui.ctx(), |ui| {
-                ui.label("This is my window!");
-                if ui.button("Close").clicked() {
-                    app.page1001.modify_window.set(false);
-                    // 如果上面保留了关闭的叉叉，这里好像只能用消息传递避免数据竞争
-                }
-            });
+fn show_modify_window(app: &mut App, ctx: &Context, _ui: &mut Ui) {
+    let App {
+        inner_http,
+        page: Page { page1001, .. },
+    } = app;
+
+    if page1001.modify_window {
+        if let Some(user) = page1001.users.get(page1001.user_row_index) {
+            let mut open = page1001.modify_window;
+            Window::new("修改用户信息")
+                .collapsible(false)
+                .resizable(false)
+                .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    if ui.button("Submit").clicked() {
+                        modify_user(inner_http, user);
+                        page1001.modify_window = false;
+                    }
+                    if ui.button("Close").clicked() {
+                        page1001.modify_window = false;
+                    }
+                });
+            page1001.modify_window &= open;
+        }
     }
+}
 
+fn show_delete_window(app: &mut App, ctx: &Context, _ui: &mut Ui) {
+    let App {
+        inner_http,
+        page: Page { page1001, .. },
+    } = app;
+
+    if page1001.delete_window {
+        if let Some(user) = page1001.users.get(page1001.user_row_index) {
+            let mut open = page1001.delete_window;
+            Window::new("删除用户")
+                .collapsible(false)
+                .resizable(false)
+                .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    if ui.button("确认").clicked() {
+                        delete_user(inner_http, user);
+                        page1001.delete_window = false;
+                    }
+                    if ui.button("取消").clicked() {
+                        page1001.delete_window = false;
+                    }
+                });
+            page1001.delete_window &= open;
+        }
+    }
+}
+
+fn show_list(page1001: &mut Page1001, _ctx: &Context, ui: &mut Ui) {
     let height = ui.spacing().interact_size.y;
     TableBuilder::new(ui)
         .columns(Column::remainder(), 7)
@@ -129,9 +191,9 @@ pub(crate) fn show(app: &mut App, ui: &mut Ui) {
                 ui.heading("操作");
             });
         })
-        .body(|mut body| {
-            for user in &app.page1001.users {
-                body.row(height, |mut row| {
+        .body(|body| {
+            body.rows(height, page1001.users.len(), |row_index, mut row| {
+                if let Some(user) = page1001.users.get(row_index) {
                     row.col(|ui| {
                         ui.label(&user.user_account);
                     });
@@ -153,28 +215,32 @@ pub(crate) fn show(app: &mut App, ui: &mut Ui) {
                     row.col(|ui| {
                         ui.horizontal(|ui| {
                             if ui.button("修改").clicked() {
-                                let open = app.page1001.modify_window.get();
-                                app.page1001.modify_window.set(!open);
+                                page1001.modify_window = true;
+                                page1001.user_row_index = row_index;
                                 info!("修改用户信息 {:?}", user);
-                                modify_user(app, user);
                             }
                             if ui.button("删除").clicked() {
+                                page1001.delete_window = true;
+                                page1001.user_row_index = row_index;
                                 info!("删除用户信息 {:?}", user);
-                                delete_user(app, user);
                             }
                         });
                     });
-                })
-            }
+                }
+            });
         });
 }
 
-fn get_user(app: &App) {
-    let url = app.base_url.join("/api/user").unwrap();
+fn get_user(app: &mut App) {
+    let App {
+        inner_http,
+        page: Page { page1001, .. },
+    } = app;
+    let url = inner_http.base_url.join("/api/user").unwrap();
     let mut req = Request::new(Method::Get, url);
 
-    req.set_query(&app.page1001.user).unwrap();
-    app.send(PendingType::GetUser, req);
+    req.set_query(&page1001.search_user).unwrap();
+    inner_http.send(PendingType::GetUser, req);
 }
 
 pub(crate) fn get_user_callback(app: &mut App, res: surf::Result) {
@@ -183,7 +249,7 @@ pub(crate) fn get_user_callback(app: &mut App, res: surf::Result) {
             if response.status().is_success() {
                 match futures::executor::block_on(response.body_json::<Vec<User>>()) {
                     Ok(users) => {
-                        app.page1001.users = users;
+                        app.page.page1001.users = users;
                         return;
                     }
                     Err(e) => error!("解析用户数据失败: {e}"),
@@ -195,18 +261,18 @@ pub(crate) fn get_user_callback(app: &mut App, res: surf::Result) {
     }
 }
 
-fn modify_user(app: &App, user: &User) {
-    let url = app.base_url.join("/api/user").unwrap();
+fn modify_user(inner_http: &mut InnerHttp, user: &User) {
+    let url = inner_http.base_url.join("/api/user").unwrap();
     let mut req = Request::new(Method::Post, url);
 
     req.body_json(user).unwrap();
-    app.send(PendingType::ModifyUser, req);
+    inner_http.send(PendingType::ModifyUser, req);
 }
 
-fn delete_user(app: &App, user: &User) {
-    let url = app.base_url.join("/api/user").unwrap();
+fn delete_user(inner_http: &mut InnerHttp, user: &User) {
+    let url = inner_http.base_url.join("/api/user").unwrap();
     let mut req = Request::new(Method::Delete, url);
 
     req.body_json(user).unwrap();
-    app.send(PendingType::DeleteUser, req);
+    inner_http.send(PendingType::DeleteUser, req);
 }

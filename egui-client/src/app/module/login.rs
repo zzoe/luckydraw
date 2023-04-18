@@ -54,21 +54,32 @@ impl Args {
     }
 }
 
-fn login(app: &App) {
-    let url = app.base_url.join("/login").unwrap();
-    let mut req = Request::new(Method::Post, url);
-    let args = Args::new(app.login.user_account.clone(), app.login.password.clone());
+fn login_call(app: &mut App) {
+    let App {
+        inner_http,
+        page: Page { login, .. },
+    } = app;
 
+    let url = inner_http.base_url.join("/login").unwrap();
+    let mut req = Request::new(Method::Post, url);
+
+    let args = Args::new(login.user_account.clone(), login.password.clone());
     req.body_json(&args).unwrap();
-    app.send(PendingType::Login, req);
+
+    inner_http.send(PendingType::Login, req);
 }
 
 pub(crate) fn login_callback(app: &mut App, res: surf::Result) {
+    let App {
+        page: Page { login, module, .. },
+        ..
+    } = app;
+
     match res {
         Ok(response) => {
             if response.status().is_success() {
-                app.login.status = LoginStatus::Success;
-                app.module = Module::Home;
+                login.status = LoginStatus::Success;
+                *module = Module::Home;
                 home::get_menu(app);
                 return;
             }
@@ -76,12 +87,17 @@ pub(crate) fn login_callback(app: &mut App, res: surf::Result) {
         }
         Err(e) => error!("登录异常： {e}"),
     }
-    app.login.status = LoginStatus::Normal;
+    login.status = LoginStatus::Normal;
 }
 
 pub(crate) fn show(app: &mut App, ctx: &Context) {
     egui::CentralPanel::default().show(ctx, |ui| {
         ui.vertical_centered(|ui| {
+            let App {
+                page: Page { login, .. },
+                ..
+            } = app;
+
             ui.spacing_mut().item_spacing.y = 10.0;
             let space_height = (ui.available_height()
                 - 6.0 * ui.spacing().item_spacing.y
@@ -90,7 +106,7 @@ pub(crate) fn show(app: &mut App, ctx: &Context) {
 
             ui.allocate_space(Vec2::new(ui.available_width(), space_height));
 
-            let text_size = app.login.text_size(ui, TextStyle::Small);
+            let text_size = login.text_size(ui, TextStyle::Small);
             let space_width = (ui.available_width()
                 - text_size.y
                 - ui.spacing().item_spacing.x
@@ -100,22 +116,21 @@ pub(crate) fn show(app: &mut App, ctx: &Context) {
             ui.horizontal(|ui| {
                 ui.add_space(space_width);
                 ui.label("用户：");
-                ui.text_edit_singleline(&mut app.login.user_account)
-                    .changed();
+                ui.text_edit_singleline(&mut login.user_account).changed();
             });
 
             ui.horizontal(|ui| {
                 ui.add_space(space_width);
                 ui.label("密码：");
-                TextEdit::singleline(&mut app.login.password)
+                TextEdit::singleline(&mut login.password)
                     .password(true)
                     .ui(ui);
             });
 
-            let btn = ui.add_enabled(app.login.status == LoginStatus::Normal, Button::new("登录"));
+            let btn = ui.add_enabled(login.status == LoginStatus::Normal, Button::new("登录"));
             if btn.clicked() || ctx.input(|i| i.key_pressed(Key::Enter)) {
-                app.login.status = LoginStatus::Logging;
-                login(app);
+                login.status = LoginStatus::Logging;
+                login_call(app);
             }
         });
 
